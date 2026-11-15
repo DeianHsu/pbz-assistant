@@ -88,7 +88,25 @@ namespace PBZ.Native
             Application.DoEvents();
             Check(reader.Visible && window.OwnedForms.Contains(reader) && reader.MaximizeBox, "详情必须是可与主界面同时使用的独立可最大化窗口");
             Check(Get<RichTextBox>(window, "detail").Text.Contains("当前进度") && !Get<RichTextBox>(window, "detail").Text.Contains("资料来源"), "底部只保留摘要");
-            Check(Get<RichTextBox>(reader, "flow").Text.Contains("地图：") && Get<RichTextBox>(reader, "flow").Text.Contains("当前进行"), "全文必须显示地图与逐步进度");
+            var flow = Get<RichTextBox>(reader, "flow");
+            var outline = Get<TreeView>(reader, "outline");
+            Check(flow.Text.Contains("地图：") && flow.Text.Contains("正在进行"), "全文必须显示地图与逐步进度");
+            Check(outline.Nodes.Count == 3 && outline.Nodes[0].Nodes.Count == 4, "连续同地图步骤应合并到同一地图区块");
+            Check(outline.Nodes[2].Text.Contains("回访") && outline.Nodes[2].Nodes[0].Text.StartsWith("6. "), "跨地图后的回访应保留原始执行顺序及步骤编号");
+            Check(flow.Text.Split(new[] { "地图：" }, StringSplitOptions.None).Length - 1 == 3, "地图只在区块标题显示一次");
+            Check(flow.Text.Contains("告知老根头密道已通  [正在进行]") && !flow.Text.Contains("状态："), "状态应紧跟步骤标题并移除单独的状态行");
+            foreach (var status in new[] {
+                new { Label = "[已完成]", Color = Color.FromArgb(39, 125, 58) },
+                new { Label = "[正在进行]", Color = Color.FromArgb(153, 107, 0) },
+                new { Label = "[未完成]", Color = Color.FromArgb(107, 114, 128) } })
+            {
+                Check(flow.Find(status.Label, 0, RichTextBoxFinds.None) >= 0, "应显示步骤状态：" + status.Label);
+                Check(flow.SelectionColor.ToArgb() == status.Color.ToArgb(), "步骤状态颜色应符合完成、进行和未完成的约定");
+            }
+            outline.SelectedNode = outline.Nodes[1].Nodes[0];
+            Check(flow.SelectionStart == (int)outline.SelectedNode.Tag, "地图目录中的步骤应跳转到对应正文");
+            outline.SelectedNode = outline.Nodes[0];
+            Check(flow.SelectionStart == (int)outline.SelectedNode.Tag, "地图目录应支持跳转到区块标题");
             Check(Get<RichTextBox>(reader, "flow").Visible && Get<RichTextBox>(reader, "flow").ClientSize.Width > 260, "正文必须拥有可见的独立阅读区域");
             Get<TextBox>(reader, "search").Text = "告知";
             Check(reader.FindNext(), "正文搜索必须能定位攻略内容");

@@ -14,7 +14,7 @@ namespace PBZ.Native
         readonly Label current = new Label { Dock = DockStyle.Fill, AutoEllipsis = true, TextAlign = ContentAlignment.MiddleLeft };
         readonly TabControl tabs = new TabControl { Dock = DockStyle.Fill };
         readonly RichTextBox overview = Reader(), flow = Reader(), evidence = Reader();
-        readonly ListBox outline = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false, HorizontalScrollbar = true, BorderStyle = BorderStyle.None };
+        readonly TreeView outline = new TreeView { Dock = DockStyle.Fill, HideSelection = false, ShowLines = false, FullRowSelect = true, BorderStyle = BorderStyle.None };
         readonly TextBox search = new TextBox { Width = 180 };
         readonly NumericUpDown fontSize = new NumericUpDown { Minimum = 10, Maximum = 20, Value = 12, Width = 55 };
         readonly Label searchResult = new Label { AutoSize = true, Margin = new Padding(4, 7, 3, 0) };
@@ -82,10 +82,10 @@ namespace PBZ.Native
             find.Click += delegate { FindNext(); };
             search.KeyDown += delegate(object sender, KeyEventArgs e) { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; FindNext(); } };
             fontSize.ValueChanged += delegate { flow.ZoomFactor = overview.ZoomFactor = evidence.ZoomFactor = (float)fontSize.Value / 12; };
-            outline.SelectedIndexChanged += delegate
+            outline.AfterSelect += delegate(object sender, TreeViewEventArgs e)
             {
-                if (updating || outline.SelectedIndex < 0) return;
-                flow.Select(stepOffsets[outline.SelectedIndex], 0);
+                if (updating || e.Node == null) return;
+                flow.Select((int)e.Node.Tag, 0);
                 flow.ScrollToCaret();
             };
             foreach (RichTextBox reader in new[] { overview, flow, evidence }) reader.LinkClicked += delegate(object sender, LinkClickedEventArgs e) { Window.OpenLink(e.LinkText); };
@@ -107,13 +107,27 @@ namespace PBZ.Native
             if (found >= 0) flow.ScrollToCaret();
             return found >= 0;
         }
-        void Append(string text, bool bold = false, Color? color = null)
+        static string StepLabel(Row step)
+        {
+            return step.S("state") == "done" ? "已完成" : step.S("state") == "current" ? "正在进行" : step.S("state") == "pending" ? "未完成" : step.S("stateLabel");
+        }
+        static Color StepColor(Row step)
+        {
+            switch (step.S("state"))
+            {
+                case "done": return Color.FromArgb(39, 125, 58);
+                case "current": return Color.FromArgb(153, 107, 0);
+                case "failed": case "interrupted": return Color.FromArgb(163, 51, 41);
+                default: return Color.FromArgb(107, 114, 128);
+            }
+        }
+        void Append(string text, bool bold = false, Color? color = null, bool newLine = true)
         {
             flow.SelectionStart = flow.TextLength;
             flow.SelectionLength = 0;
             using (var font = new Font("Microsoft YaHei UI", bold ? 13 : 12, bold ? FontStyle.Bold : FontStyle.Regular)) flow.SelectionFont = font;
             flow.SelectionColor = color ?? Color.FromArgb(30, 40, 48);
-            flow.AppendText(text + "\r\n");
+            flow.AppendText(text + (newLine ? "\r\n" : ""));
         }
         public void ShowDocument(Row next, string context)
         {
@@ -141,28 +155,50 @@ namespace PBZ.Native
             outline.BeginUpdate();
             try
             {
-                outline.Items.Clear(); flow.Clear(); stepOffsets.Clear();
+                outline.Nodes.Clear(); flow.Clear(); stepOffsets.Clear();
                 Row[] steps = next.Rows("steps");
-                string section = "";
+                string section = "", previousMap = null;
+                var visitedMaps = new HashSet<string>();
+                var stepNodes = new List<TreeNode>();
+                TreeNode mapNode = null;
                 for (int i = 0; i < steps.Length; i++)
                 {
                     Row step = steps[i];
+                    string map = step.S("map").Or(step.S("mapName"));
+                    if (map != previousMap)
+                    {
+                        string mapTitle = step.S("mapName") + (visitedMaps.Add(map) ? "" : " · 回访");
+                        flow.SelectionIndent = 0;
+                        mapNode = outline.Nodes.Add(mapTitle);
+                        mapNode.Tag = flow.TextLength;
+                        Append("地图：" + mapTitle, true, Color.FromArgb(25, 91, 122));
+                        Append("");
+                        flow.SelectionIndent = 16;
+                        previousMap = map;
+                        section = "";
+                    }
                     if (step.S("section") != "" && step.S("section") != section) { section = step.S("section"); Append(section, true); Append(""); }
                     stepOffsets.Add(flow.TextLength);
-                    outline.Items.Add((i + 1) + ". " + step.S("mapName") + " · " + step.S("title") + " [" + step.S("stateLabel") + "]");
-                    Append((i + 1) + ". " + step.S("title"), true);
-                    Append("地图：" + step.S("mapName") + "\r\n地点：" + step.S("place"));
-                    Append("状态：" + step.S("stateLabel"), true, step.Flag("current") ? Color.FromArgb(25, 91, 122) : (Color?)null);
+                    string title = (i + 1) + ". " + step.S("title"), label = StepLabel(step);
+                    TreeNode stepNode = mapNode.Nodes.Add(title + " [" + label + "]");
+                    stepNode.Tag = flow.TextLength;
+                    stepNode.ForeColor = StepColor(step);
+                    stepNodes.Add(stepNode);
+                    Append(title + "  ", true, null, false);
+                    Append("[" + label + "]", true, StepColor(step));
+                    Append("地点：" + step.S("place"));
                     Append(step.S("text"));
                     Append("");
                 }
+                flow.SelectionIndent = 0;
                 if (steps.Length == 0) Append(string.Join("\r\n", next.Strings("notes")).Or("暂无可读取的流程；请核对游戏日志。"));
                 Append("注意事项", true);
                 Append(string.Join("\r\n", next.Strings("notes")));
                 Append("资料来源", true);
                 Append(string.Join("\r\n", next.Strings("sources")));
                 int active = Array.FindIndex(steps, s => s.Flag("current"));
-                outline.SelectedIndex = steps.Length == 0 ? -1 : Math.Max(0, active);
+                outline.ExpandAll();
+                outline.SelectedNode = steps.Length == 0 ? null : stepNodes[Math.Max(0, active)];
                 flow.ZoomFactor = (float)fontSize.Value / 12;
                 Point position;
                 if (positions.TryGetValue(key, out position)) ScrollMessage(flow.Handle, 0x4de, IntPtr.Zero, ref position); // EM_SETSCROLLPOS
