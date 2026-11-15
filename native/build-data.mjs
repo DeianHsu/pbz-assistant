@@ -15,6 +15,7 @@ import { analyzeAchievements } from '../reference/achievements.mjs';
 import { achievementPlans } from '../reference/achievement-plans.mjs';
 import { achievementObjectives, questObjectives } from '../reference/objective-progress.mjs';
 import { weaponFormBases } from '../reference/item-record.mjs';
+import { questGuides, checkpointMaps } from '../reference/quest-guides.mjs';
 import { pipaRepair, soulComponentProducts, soulComponents, soulForms, soulGuides, soulRecipes, soulSources } from '../reference/soul-data.mjs';
 
 const achievementHelp = analyzeAchievements(null, {}, {
@@ -29,5 +30,6 @@ writeFileSync(process.argv[2], JSON.stringify({
   pointRoutes: Object.fromEntries(pointRoutes), pointChecks, books: bookDirectory(), navigationMaps,
   navigationDefinitions: Object.fromEntries(navigationDefinitions), questOffers, questArchive, collectionCategories, collectibleCategories,
   achievementHelp: Object.fromEntries(achievementHelp), achievementPlans, achievementObjectives, questObjectives, weaponFormBases,
-  collectionAliases, unlistedCollectionItems, pipaRepair, soulComponentProducts, soulComponents, soulForms, soulGuides, soulRecipes, soulSources
+  collectionAliases, unlistedCollectionItems, pipaRepair, soulComponentProducts, soulComponents, soulForms, soulGuides, soulRecipes, soulSources,
+  questGuides, checkpointMaps
 }));

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-test('原生窗口支持手动选档、刷新、槽位切换及返回自动查找', { skip: process.platform !== 'win32', timeout: 60000 }, () => {
+test('原生窗口支持选档刷新、独立详情及逐步进度', { skip: process.platform !== 'win32', timeout: 60000 }, () => {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const work = path.join(root, '.local');
   fs.mkdirSync(work, { recursive: true });
@@ -74,9 +74,10 @@ test('原生窗口支持手动选档、刷新、槽位切换及返回自动查�
       .map(name => path.join(root, 'native', name));
     run(compiler, ['/nologo', '/target:exe', '/platform:x64', '/codepage:65001', `/out:${exe}`, `/resource:${guides},PBZ.Guides`,
       '/reference:System.Web.Extensions.dll', '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll',
-      ...sources, path.join(root, 'test/native-save-selection.cs')]);
+      ...sources, path.join(root, 'test/native-save-selection.cs'), path.join(root, 'test/native-details.cs')]);
     const output = run(exe, [game, automatic, secondAccount, manual, updated, invalid]);
     assert.match(output, /存档选择验证通过/);
+    assert.match(output, /详情窗口与逐步进度验证通过/);
   } finally {
     assert.equal(path.dirname(path.resolve(temp)), path.resolve(work));
     fs.rmSync(temp, { recursive: true, force: true });

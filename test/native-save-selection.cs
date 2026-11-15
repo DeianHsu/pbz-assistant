@@ -39,7 +39,7 @@ namespace PBZ.Native
             Get<ComboBox>(window, field).SelectedIndex = index;
             await Idle(window);
         }
-        static Catalog EmptyCatalog()
+        internal static Catalog EmptyCatalog()
         {
             var catalog = (Catalog)FormatterServices.GetUninitializedObject(typeof(Catalog));
             Set(catalog, "Quests", new List<Row>());
@@ -122,6 +122,7 @@ namespace PBZ.Native
                     "默认存档顺序改变后，刷新须保留所选账号和槽位");
                 Check(Slot(window).EndsWith("05"), "显示进度须与所选槽位一致");
                 Check(Get<Button>(window, "chooseSave").Enabled && autoButton.Enabled, "读取结束须恢复选择入口");
+                DetailsTests.Run(window);
                 window.Close();
             }
             Console.WriteLine("存档选择验证通过");
