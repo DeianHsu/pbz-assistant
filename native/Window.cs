@@ -226,12 +226,16 @@ namespace PBZ.Native
                     dialog.InitialDirectory = Path.GetDirectoryName(files[selected]);
                     dialog.FileName = Path.GetFileName(files[selected]);
                 }
-                if (dialog.ShowDialog(this) == DialogResult.OK) await Reload(dialog.FileName);
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    bool loaded = await Reload(dialog.FileName);
+                    if (!loaded && !IsDisposed) MessageBox.Show(this, status.Text, "存档读取失败", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
             }
         }
-        async Task Reload(string saveFile)
+        async Task<bool> Reload(string saveFile)
         {
-            if (busy) return;
+            if (busy) return false;
             SetBusy(true, "正在查找游戏并读取存档…");
             int selected = account.SelectedIndex;
             string previousFile = files != null && selected >= 0 && selected < files.Length ? files[selected] : "";
@@ -245,7 +249,7 @@ namespace PBZ.Native
                     var metadata = catalog != null && path == game ? catalog : new Catalog(path);
                     return new { Path = path, Files = found, Catalog = metadata, Accounts = found.Select(file => SaveReader.Read(path, file)).ToArray() };
                 });
-                if (IsDisposed) return;
+                if (IsDisposed) return false;
                 game = loaded.Path;
                 catalog = loaded.Catalog;
                 files = loaded.Files;
@@ -257,9 +261,13 @@ namespace PBZ.Native
                 account.Visible = true;
                 updating = false;
                 SetSlots(string.Equals(files[account.SelectedIndex], previousFile, StringComparison.OrdinalIgnoreCase) ? previousSlot : "");
-                await Analyze(true);
+                return await Analyze(true);
             }
-            catch (Exception error) { if (!IsDisposed) SetBusy(false, "读取失败：" + error.Message + "。可重新选择文件或点击自动查找。"); }
+            catch (Exception error)
+            {
+                if (!IsDisposed) SetBusy(false, "读取失败：" + error.Message);
+                return false;
+            }
         }
         void SetSlots(string preferred)
         {
@@ -276,9 +284,9 @@ namespace PBZ.Native
             SetSlots("");
             await Analyze();
         }
-        async Task Analyze(bool fromReload = false)
+        async Task<bool> Analyze(bool fromReload = false)
         {
-            if ((!fromReload && busy) || saves == null || account.SelectedIndex < 0 || slot.SelectedIndex < 0) return;
+            if ((!fromReload && busy) || saves == null || account.SelectedIndex < 0 || slot.SelectedIndex < 0) return false;
             SetBusy(true, "正在核对任务、成就和收集记录…");
             Account selected = saves[account.SelectedIndex];
             string selectedSlot = Selected(slot);
@@ -290,12 +298,13 @@ namespace PBZ.Native
                     var c = new Collections(p);
                     return new { Progress = p, Collections = c, Navigation = new QuestNavigation(p, c) };
                 });
-                if (IsDisposed) return;
+                if (IsDisposed) return false;
                 ShowData(data.Progress, data.Collections, data.Navigation);
                 status.Text = "存档保存于 " + selected.Time(selectedSlot) + "  ·  读取于 " + DateTime.Now.ToString("HH:mm:ss") +
                     (catalog.Warnings.Count == 0 ? "" : "  ·  " + string.Join("  ", catalog.Warnings)) + "  ·  " + files[account.SelectedIndex];
+                return true;
             }
-            catch (Exception error) { if (!IsDisposed) status.Text = "分析失败：" + error.Message; }
+            catch (Exception error) { if (!IsDisposed) status.Text = "分析失败：" + error.Message; return false; }
             finally { if (!IsDisposed) SetBusy(false, null); }
         }
         internal void ShowData(Progress p, Collections c, QuestNavigation n)
