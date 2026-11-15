@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -38,12 +39,15 @@ namespace PBZ.Native
         readonly Label status = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, ForeColor = Muted, AutoEllipsis = true };
         readonly Label title = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, ForeColor = Ink };
         readonly Button refresh = new Button { Text = "重新读取存档", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(9, 1, 9, 1) };
+        readonly Button chooseSave = new Button { Text = "选择存档文件", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(9, 1, 9, 1) };
+        readonly Button findSaves = new Button { Text = "自动查找", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(9, 1, 9, 1) };
         readonly SplitContainer split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterWidth = 5, BackColor = Color.FromArgb(224, 231, 235) };
         readonly string[] rememberedRegion = new string[Pages.Length], rememberedCategory = new string[Pages.Length], rememberedFilter = new string[Pages.Length], rememberedSearch = new string[Pages.Length];
         readonly int[] sortColumns = Enumerable.Repeat(-1, Pages.Length).ToArray();
         readonly bool[] sortDescending = new bool[Pages.Length];
         Catalog catalog;
         string game;
+        string manualSave;
         string[] files;
         Account[] saves;
         Progress progress;
@@ -134,6 +138,8 @@ namespace PBZ.Native
             savesBar.Controls.Add(Label("槽位", Ink));
             savesBar.Controls.Add(slot);
             savesBar.Controls.Add(refresh);
+            savesBar.Controls.Add(chooseSave);
+            savesBar.Controls.Add(findSaves);
             var banner = new Panel { Dock = DockStyle.Fill, BackColor = Background, Padding = new Padding(12, 0, 12, 0), Margin = new Padding(0, 0, 0, 4) };
             banner.Controls.Add(overview);
             title.Font = new Font(Font.FontFamily, 18, FontStyle.Bold);
@@ -174,11 +180,13 @@ namespace PBZ.Native
             list.ColumnClick += delegate(object sender, ColumnClickEventArgs e) { SortColumn(e.Column); };
             list.DoubleClick += delegate { FollowSelection(); };
             detail.LinkClicked += delegate(object sender, LinkClickedEventArgs e) { OpenLink(e.LinkText); };
-            refresh.Click += async delegate { await Reload(); };
+            refresh.Click += async delegate { await Reload(manualSave); };
+            chooseSave.Click += async delegate { await ChooseSave(); };
+            findSaves.Click += async delegate { await Reload(null); };
             KeyPreview = true;
-            KeyDown += async delegate(object sender, KeyEventArgs e) { if (e.KeyCode == Keys.F5) { e.Handled = true; await Reload(); } };
+            KeyDown += async delegate(object sender, KeyEventArgs e) { if (e.KeyCode == Keys.F5) { e.Handled = true; await Reload(manualSave); } };
             nav.SelectedIndex = 0;
-            Shown += async delegate { split.SplitterDistance = split.Height * 58 / 100; await Reload(); };
+            Shown += async delegate { split.SplitterDistance = split.Height * 58 / 100; await Reload(null); };
         }
 
         void DrawNav(object sender, DrawItemEventArgs e)
@@ -193,10 +201,24 @@ namespace PBZ.Native
         void SetBusy(bool value, string message)
         {
             busy = value;
-            account.Enabled = slot.Enabled = refresh.Enabled = !value;
+            account.Enabled = slot.Enabled = refresh.Enabled = chooseSave.Enabled = findSaves.Enabled = !value;
             if (message != null) status.Text = message;
         }
-        async Task Reload()
+        async Task ChooseSave()
+        {
+            if (busy) return;
+            using (var dialog = new OpenFileDialog { Title = "选择影之刃零存档", Filter = "存档文件 (*.sav)|*.sav|所有文件 (*.*)|*.*", CheckFileExists = true, Multiselect = false })
+            {
+                int selected = account.SelectedIndex;
+                if (files != null && selected >= 0 && selected < files.Length)
+                {
+                    dialog.InitialDirectory = Path.GetDirectoryName(files[selected]);
+                    dialog.FileName = Path.GetFileName(files[selected]);
+                }
+                if (dialog.ShowDialog(this) == DialogResult.OK) await Reload(dialog.FileName);
+            }
+        }
+        async Task Reload(string saveFile)
         {
             if (busy) return;
             SetBusy(true, "正在查找游戏并读取存档…");
@@ -208,7 +230,7 @@ namespace PBZ.Native
                 var loaded = await Task.Run(() =>
                 {
                     string path = GameDiscovery.FindGame();
-                    string[] found = GameDiscovery.FindSaves(path);
+                    string[] found = saveFile == null ? GameDiscovery.FindSaves(path) : new[] { saveFile };
                     var metadata = catalog != null && path == game ? catalog : new Catalog(path);
                     return new { Path = path, Files = found, Catalog = metadata, Accounts = found.Select(file => SaveReader.Read(path, file)).ToArray() };
                 });
@@ -217,14 +239,16 @@ namespace PBZ.Native
                 catalog = loaded.Catalog;
                 files = loaded.Files;
                 saves = loaded.Accounts;
+                manualSave = saveFile;
                 updating = true;
-                Set(account, files.Select((file, index) => Option(index.ToString(), "本地存档 " + (index + 1))), Array.IndexOf(files, previousFile).ToString());
+                Set(account, files.Select((file, index) => Option(index.ToString(), manualSave == null ? "本地存档 " + (index + 1) : "手动选择的存档")),
+                    Array.FindIndex(files, file => string.Equals(file, previousFile, StringComparison.OrdinalIgnoreCase)).ToString());
                 account.Visible = true;
                 updating = false;
-                SetSlots(previousSlot);
+                SetSlots(string.Equals(files[account.SelectedIndex], previousFile, StringComparison.OrdinalIgnoreCase) ? previousSlot : "");
                 await Analyze(true);
             }
-            catch (Exception error) { if (!IsDisposed) SetBusy(false, "读取失败：" + error.Message + "。可按 F5 重试。"); }
+            catch (Exception error) { if (!IsDisposed) SetBusy(false, "读取失败：" + error.Message + "。可重新选择文件或点击自动查找。"); }
         }
         void SetSlots(string preferred)
         {
@@ -258,7 +282,7 @@ namespace PBZ.Native
                 if (IsDisposed) return;
                 ShowData(data.Progress, data.Collections, data.Navigation);
                 status.Text = "存档保存于 " + selected.Time(selectedSlot) + "  ·  读取于 " + DateTime.Now.ToString("HH:mm:ss") +
-                    (catalog.Warnings.Count == 0 ? "" : "  ·  " + string.Join("  ", catalog.Warnings));
+                    (catalog.Warnings.Count == 0 ? "" : "  ·  " + string.Join("  ", catalog.Warnings)) + "  ·  " + files[account.SelectedIndex];
             }
             catch (Exception error) { if (!IsDisposed) status.Text = "分析失败：" + error.Message; }
             finally { if (!IsDisposed) SetBusy(false, null); }
