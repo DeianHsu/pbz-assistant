@@ -144,10 +144,10 @@ namespace PBZ.Native
             heading.Text = next.S("title") + "  ·  " + next.S("stateLabel");
             string reason = next.S("reason");
             current.ForeColor = reason == "" ? Color.FromArgb(30, 40, 48) : Color.FromArgb(163, 51, 41);
-            current.Text = TaskDetails.Join(next.S("phase"), reason == "" ? "当前进度：" + next.S("next") : "失败／中断原因：" + reason.Split('\n')[0]);
+            current.Text = TaskDetails.Join(next.S("phase"), reason == "" ? (next.Flag("reference") ? "资料说明：" : "当前进度：") + next.S("next") : "失败／中断原因：" + reason.Split('\n')[0]);
             overview.Text = TaskDetails.Join(next.S("summary"), next.S("progress"), "", reason == "" ? "" : "失败／中断原因\r\n" + reason,
                 next.S("recovery") == "" ? "" : "补救方式\r\n" + next.S("recovery"), next.S("impact") == "" ? "" : "影响\r\n" + next.S("impact"),
-                "注意事项\r\n" + string.Join("\r\n", next.Strings("notes")), "所选存档与槽位\r\n" + context);
+                "注意事项\r\n" + string.Join("\r\n", next.Strings("notes")), (next.Flag("reference") ? "浏览模式\r\n" : "所选存档与槽位\r\n") + context);
             evidence.Text = TaskDetails.Join("判断依据", next.S("evidence"), "逐步判定", string.Join("\r\n", next.Rows("steps").Select((s, i) =>
                 (i + 1) + ". " + s.S("title") + " · " + s.S("stateLabel") + "\r\n" + s.S("proof"))),
                 "资料来源", string.Join("\r\n", next.Strings("sources")), "适用游戏构建：26266538、26367565。位置和分支尚未核实的内容会明确标注。");
