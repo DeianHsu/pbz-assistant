@@ -91,7 +91,7 @@ namespace PBZ.Native
                 await Idle(window);
                 Check(Get<Progress>(window, "progress") == null && Get<Label>(window, "status").Text.StartsWith("读取失败："), "未安装游戏的启动须保留资料浏览模式");
                 int[] counts = window.CheckPages();
-                Check(counts[0] == 105 && counts[3] == 62 && counts[6] > 0, "没有游戏和存档时，全部任务、21 个节点、84 个检查和资料来源须直接显示");
+                Check(counts.Length == 6 && counts[5] > 0 && window.CheckPageFilter(0, 3) > 21, "合并后应保留六个侧栏入口，无存档也能浏览节点检查和资料来源");
                 var documents = Get<TaskDetails>(window, "taskDetails");
                 Check(documents.Quests.Count == 71, "内置任务与资源留档须完整加载");
                 foreach (Row document in documents.Quests.Values.Concat(documents.Nodes.Values).Concat(documents.Checks.Values))
@@ -174,7 +174,7 @@ namespace PBZ.Native
                 Check(GameDiscovery.Searches == searches, "手动读取不应扫描默认存档目录");
                 Check(Get<Progress>(window, "progress").Cycle == 3, "打开新文件须使用该文件的继续游戏槽位");
                 Check(Get<Label>(window, "status").Text.Contains(args[3]), "状态栏须显示当前文件路径");
-                Check(window.CheckPages().Length == 8, "手动读取后全部页面须能正常填充");
+                Check(window.CheckPages().Length == 6, "手动读取后全部页面须能正常填充");
                 await Select(window, "slot", 0);
                 Check(Get<Progress>(window, "progress").Cycle == 2, "手动存档须支持槽位切换");
                 File.Copy(args[4], args[3], true);

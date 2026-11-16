@@ -52,7 +52,7 @@ namespace PBZ.Native
                     throw new InvalidDataException("游戏版本未经验证，需要先适配存档与任务数据。");
                 return game;
             }
-            throw new DirectoryNotFoundException("没有找到 Steam 版影之刃零。读取个人进度需要本机游戏程序中的解密信息，以及任务、地图和物品资源。当前可直接浏览全部任务和行前检查攻略。");
+            throw new DirectoryNotFoundException("没有找到 Steam 版影之刃零。读取个人进度需要本机游戏程序中的解密信息，以及任务、地图和物品资源。当前可在任务助手中浏览全部任务和节点检查。");
         }
 
         public static string[] FindSaves(string game)

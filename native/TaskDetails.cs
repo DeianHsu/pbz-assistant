@@ -16,6 +16,7 @@ namespace PBZ.Native
         public readonly Dictionary<string, Row> Quests = new Dictionary<string, Row>();
         public readonly Dictionary<string, Row> Nodes = new Dictionary<string, Row>();
         public readonly Dictionary<string, Row> Checks = new Dictionary<string, Row>();
+        public readonly Dictionary<string, Row> NodeTasks = new Dictionary<string, Row>();
         public TaskDetails()
         {
             achievementPlans = Progress.Guides.Get("achievementPlans").Dict().Select(pair => pair.Value.Dict().With("id", pair.Key, "name", pair.Key)).ToArray();
@@ -37,13 +38,47 @@ namespace PBZ.Native
                 Row[] items = gate.Rows("items");
                 for (int i = 0; i < items.Length; i++) Checks.Add(gate.S("id") + ":" + i, Check(gate, items[i]));
                 Nodes.Add(gate.S("id"), Node(gate));
+                foreach (var group in items.Select((item, i) => new { Item = item, Index = i, Quest = QuestFor(item) })
+                    .GroupBy(row => row.Quest == "" ? "check:" + row.Index : row.Quest))
+                {
+                    string questId = group.First().Quest;
+                    Row quest; Quests.TryGetValue(questId, out quest);
+                    Row[] checks = group.Select(row => Checks[gate.S("id") + ":" + row.Index]).ToArray();
+                    Row[] required = checks.Where(c => !c.Flag("optional")).ToArray();
+                    if (required.Length == 0) required = checks;
+                    string state = p == null ? "unknown" : required.All(c => c.S("state") == "done") ? "done"
+                        : required.Any(c => c.S("state") == "failed") ? "failed" : required.Any(c => c.S("state") == "interrupted") ? "interrupted"
+                        : required.Any(c => c.S("state") == "unknown") ? "unknown" : "pending";
+                    string title = quest.S("title").Or(Progress.Guides.Get("questGuides").Get(questId).S("name")).Or(checks[0].S("title"));
+                    string label = p == null ? Unread : CheckLabel(state), taskState = quest.S("stateLabel").Or(p == null ? Unread : "待核实");
+                    string reason = Join(checks.Select(c => c.S("reason")).Where(s => s != "").Distinct().ToArray());
+                    string conditions = Join(checks.Select(c => c.S("title") + " · " + c.S("stateLabel") + (c.Flag("optional") ? "（可选）" : "")).ToArray());
+                    Row document = Data.Make("id", "node-task:" + gate.S("id") + ":" + group.Key, "title", title, "state", state, "stateLabel", label,
+                        "questId", questId, "taskStateLabel", questId == "" ? "" : taskState, "nodeId", gate.S("id"), "nodeName", gate.S("name"),
+                        "reference", p == null, "reason", reason, "next", conditions, "steps", checks.Select(c => c.Rows("steps").Last()).ToArray(),
+                        "phase", Nodes[gate.S("id")].S("phase"), "recovery", Join(checks.Select(c => c.S("recovery")).Where(s => s != "").Distinct().ToArray()),
+                        "notes", new[] { gate.S("note"), "这里只核对本节点的具体条件。关联任务的整体状态单独显示，完整流程可通过“查看关联任务”打开。" },
+                        "evidence", Join(checks.Select(c => c.S("evidence")).Distinct().ToArray()), "sources", checks.SelectMany(c => c.Strings("sources")).Concat(new[] { gate.S("source") }).Where(s => s != "").Distinct().ToArray(),
+                        "achievements", group.SelectMany(row => row.Item.Strings("achievements")).Distinct().ToArray(),
+                        "summary", Join(title, questId == "" ? "" : "任务状态：" + taskState, "检查节点：" + gate.S("name"), "本节点条件：" + label,
+                            conditions, reason == "" ? "" : "失败／中断原因：" + reason));
+                    NodeTasks.Add(document.S("id"), document);
+                }
             }
+        }
+        public string QuestFor(Row item)
+        {
+            string id = item.S("quest").Or(item.S("evidenceQuest"));
+            if (id != "" || item.S("item") == "") return id;
+            return Quests.FirstOrDefault(pair => pair.Value.Rows("steps").Any(step => step.Get("reward") != null &&
+                step.Get("evidence").S("id").Equals(item.S("item"), StringComparison.OrdinalIgnoreCase) &&
+                step.Get("evidence").S("category") == item.S("category"))).Key ?? "";
         }
         static Row ReferenceQuest(string id, Row guide)
         {
             Row[] steps = guide.Rows("steps").Select(step => step.With("mapName", MapName(step.S("map")),
                 "state", "unknown", "stateLabel", Unread, "current", false, "proof", ReferenceNote)).ToArray();
-            return Data.Make("id", "quest:" + id, "title", guide.S("name"), "state", "unknown", "stateLabel", Unread,
+            return Data.Make("id", "quest:" + id, "questId", id, "title", guide.S("name"), "state", "unknown", "stateLabel", Unread,
                 "reference", true, "archive", guide.Flag("archive"), "steps", steps, "notes", guide.Strings("notes"), "sources", guide.Strings("sources"),
                 "evidence", ReferenceNote, "next", "可先阅读文字攻略，读取存档后显示个人进度和当前步骤。",
                 "summary", Join(guide.S("name") + " · " + Unread, ReferenceNote));
@@ -170,7 +205,7 @@ namespace PBZ.Native
             string[] notes = guide.Strings("notes").Concat(new[] { quest.S("catalogNote"),
                 quest.S("stateLabel") != label ? "路线提示：" + quest.S("stateLabel") : "",
                 guide.Count == 0 ? "此任务尚未核对人工文字路线，下面展示游戏原生目标。" : "" }).Where(s => s != "").ToArray();
-            return Data.Make("id", "quest:" + id, "title", title, "state", state, "stateLabel", label, "archive", quest.S("catalogNote") != "", "reason", reason, "recovery", recovery,
+            return Data.Make("id", "quest:" + id, "questId", id, "title", title, "state", state, "stateLabel", label, "archive", quest.S("catalogNote") != "", "reason", reason, "recovery", recovery,
                 "evidence", evidenceText, "next", next, "blocker", blocker, "steps", steps, "notes", notes,
                 "sources", guide.Strings("sources").Concat(quest.Rows("targets").Select(t => t.S("source"))).Concat(new[] { failure.S("source") }).Where(s => s != "").Distinct().ToArray(),
                 "summary", Join(title + " · " + label, "当前进度：" + next, reason == "" ? "推进条件与卡点：" + blocker : "失败／中断原因：" + reason));
@@ -239,22 +274,14 @@ namespace PBZ.Native
                 : "已满足 " + done + "/" + required.Length + (unknown > 0 ? "，另有 " + unknown + " 项待核实" : "");
             string reason = string.Join("\r\n", checks.Where(c => c.S("reason") != "").Select(c => (c.Flag("optional") ? "（可选项）" : "") + c.S("title") + "：" + c.S("reason")).Distinct());
             string next = string.Join("；", checks.Where(c => c.S("state") != "done").Select(c => c.S("title")));
-            var steps = new List<Row>();
-            var includedQuests = new HashSet<string>();
-            for (int i = 0; i < checks.Length; i++)
-            {
-                Row[] flow = checks[i].Rows("steps");
-                string quest = items[i].S("quest");
-                if (quest == "" || includedQuests.Add(quest)) steps.AddRange(flow.Take(flow.Length - 1));
-                steps.Add(flow.Last());
-            }
+            Row[] steps = checks.Select(c => c.Rows("steps").Last()).ToArray();
             string currentSteps = CurrentSteps(steps);
             if (currentSteps != "") next = Join("当前进行：" + currentSteps, "待检查：" + next);
             return Data.Make("id", "node:" + gate.S("id"), "title", gate.S("name"), "state", state, "stateLabel", reference ? Unread : CheckLabel(state), "phase", phase, "reference", reference,
                 "reason", reason, "progress", progress, "next", next.Or("本节点所有必需检查项均已满足。"), "steps", steps.ToArray(),
                 "evidence", string.Join("\r\n", checks.Select(c => c.S("title") + "：" + c.S("stateLabel") + "；" + c.S("evidence"))),
                 "recovery", string.Join("\r\n", checks.Select(c => c.S("recovery")).Where(s => s != "").Distinct()),
-                "notes", new[] { gate.S("note"), "本节点的满足条件列在“本节点检查”步骤；关联任务保留包含后续地区的完整流程。",
+                "notes", new[] { gate.S("note"), "这里只展示本节点需要核对的条件，关联任务的完整流程可单独查阅。",
                     "节点推进情况与检查结果独立显示。可选项不计入必需检查的分母；已越过节点不自动代表任务失败。" },
                 "sources", new[] { gate.S("source") }.Concat(checks.SelectMany(c => c.Strings("sources"))).Where(s => s != "").Distinct().ToArray(),
                 "summary", Join(gate.S("name") + " · " + phase, progress, reference ? ReferenceNote : "", reason == "" ? "" : "失败／中断原因：" + reason,

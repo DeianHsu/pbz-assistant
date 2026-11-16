@@ -35,7 +35,7 @@ namespace PBZ.Native
         }
         public DetailsWindow()
         {
-            Text = "任务与行前检查详情";
+            Text = "任务与节点检查详情";
             Font = new Font("Microsoft YaHei UI", 10);
             AutoScaleMode = AutoScaleMode.Dpi;
             Size = new Size(1080, 800);
@@ -140,7 +140,7 @@ namespace PBZ.Native
                 positions[documentKey] = previousPosition;
             }
             document = next; documentKey = key;
-            Text = next.S("title") + " · 任务与行前检查详情";
+            Text = next.S("title") + " · 任务与节点检查详情";
             heading.Text = next.S("title") + "  ·  " + next.S("stateLabel");
             string reason = next.S("reason");
             current.ForeColor = reason == "" ? Color.FromArgb(30, 40, 48) : Color.FromArgb(163, 51, 41);

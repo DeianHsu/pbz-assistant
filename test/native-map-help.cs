@@ -44,6 +44,12 @@ namespace PBZ.Native
             list.Items.Cast<ListViewItem>().Single(i => Document(i).S("id") == id).Selected = true;
             Application.DoEvents();
         }
+        static void Preview(Window window, string suffix)
+        {
+            string path = Environment.GetEnvironmentVariable("PBZ_MAP_HELP_PREVIEW");
+            if (!string.IsNullOrEmpty(path))
+                using (var bitmap = new Bitmap(window.Width, window.Height)) { window.DrawToBitmap(bitmap, window.ClientRectangle); bitmap.Save(path + suffix); }
+        }
         public static void Run(Window window)
         {
             var offline = new MapHelp(new TaskDetails());
@@ -83,39 +89,78 @@ namespace PBZ.Native
             help = Show(window, catalog, slot);
             window.CheckPageFilter(7, 0);
             var list = Get<ListView>(window, "list");
-            Check(Get<ComboBox>(window, "region").Text == "悲泣溪谷" && list.Items.Cast<ListViewItem>().All(i => MapHelp.Related(Document(i), "XiGu")), "地图助手默认关联存档中的当前地图");
-            Check(!list.Items.Cast<ListViewItem>().Any(i => Document(i).S("id") == "quest:GuiTu"), "其他地图的任务不得混作当前地图相关任务");
-            Check(window.OwnedForms.All(f => f.IsDisposed), "切换地图信息不应自动打开完整攻略或弹窗");
+            var sidebar = Get<ListBox>(window, "nav");
+            Check(sidebar.Items.Count == 6 && sidebar.Items[0].ToString() == "任务助手" && !sidebar.Items.Contains("地图助手") && !sidebar.Items.Contains("行前检查") && !sidebar.Items.Contains("任务路线"), "三栏应合并为一个任务助手入口");
+            Check(Get<RadioButton>(window, "progressView").Checked && Get<ComboBox>(window, "region").Text == "当前阶段与地图", "当前进度应结合阶段和地图展示相关信息");
+            Check(list.Items.Cast<ListViewItem>().Select(i => Document(i).S("id")).Distinct().Count() == list.Items.Count, "同一任务在当前进度中只能出现一次");
+            Check(list.Items.Cast<ListViewItem>().Any(i => Document(i).Flag("stageRelated") && !MapHelp.Related(Document(i), "XiGu")), "当前阶段的跨地图事项应保留，不能仅按所在地过滤");
+            Check(window.OwnedForms.All(f => f.IsDisposed), "查看进度不应自动打开完整攻略或弹窗");
             var region = Get<ComboBox>(window, "region");
             region.SelectedIndex = Enumerable.Range(0, region.Items.Count).Single(i => region.Items[i].ToString() == "陆家村地区");
-            Check(list.Items.Cast<ListViewItem>().Any(i => Document(i).S("id") == "quest:GuiTu"), "可主动查阅其他地图关联的任务");
+            Check(list.Items.Cast<ListViewItem>().Count(i => Document(i).S("questId") == "GuiTu") == 1, "任务与阶段奖励应合并到同一行");
             Get<Button>(window, "currentMap").PerformClick();
-            Check(region.Text == "悲泣溪谷", "当前地图按钮须返回存档位置");
-            int count = help.Entries.Count(e => e.Flag("notice") && MapHelp.Related(e, "XiGu"));
-            Check(count > 1 && Get<Label>(window, "reminder").Text.Contains(count + " 项提醒"), "提醒摘要须统计全部相关风险与奖励，不能只显示第一项");
+            Check(region.Text == "当前阶段与地图", "返回当前进度应清除手动查阅地图和节点");
+
+            var nodes = Get<ComboBox>(window, "node");
+            nodes.SelectedIndex = Enumerable.Range(0, nodes.Items.Count).Single(i => nodes.Items[i].ToString() == "进入庞镇前");
+            Check(Get<RadioButton>(window, "progressView").Checked && sidebar.SelectedIndex == 0, "节点检查应位于当前进度内部");
+            Row nodeGui = list.Items.Cast<ListViewItem>().Select(Document).Single(d => d.S("questId") == "GuiTu");
+            Check(nodeGui.S("taskStateLabel") == "进行中" && nodeGui.S("stateLabel") == "已满足", "整体任务仍在进行，也应单独确认本节点条件已满足");
+            Check(nodeGui.Rows("steps").Length == 1 && nodeGui.Rows("steps").All(step => step.S("section") == "本节点检查"), "节点条件不重复嵌入整条任务攻略");
+            Pick(list, nodeGui.S("id"));
+            Preview(window, ".node.png");
+            var reader = new DetailsWindow { Opacity = 0, ShowInTaskbar = false }; Set(window, "detailsWindow", reader);
+            Get<Button>(window, "relatedTask").PerformClick();
+            Check(reader.Visible && reader.DocumentId == "quest:GuiTu" && Get<RichTextBox>(reader, "flow").Text.Contains("地图：庞镇后街"), "可从节点条件按需打开关联任务的完整流程");
+            Show(window, catalog, slot);
+            Check(reader.DocumentId == "quest:GuiTu", "刷新节点检查时，已经打开的关联任务全文应保持当前阅读对象");
+            reader.Close();
+
+            Row parallel = Slot();
+            parallel.Get("Narrative").Rows("NarrativeSavedQuests")[1]["QuestBranches"] = new[] {
+                Data.Make("BranchID", "3-A", "BranchType", "EBranchType::BranchActivating"),
+                Data.Make("BranchID", "4", "BranchType", "EBranchType::BranchActivating") };
+            Show(window, catalog, parallel);
+            Get<RadioButton>(window, "allTasksView").PerformClick();
+            Check(Get<RadioButton>(window, "allTasksView").Checked && !nodes.Visible, "全部任务应提供独立查阅视图");
+            Check(list.Items.Cast<ListViewItem>().Count(i => Document(i).S("questId") == "GuiTu") == 1, "多个活动目标也应只展示一条任务");
+            Preview(window, ".tasks.png");
+            Pick(list, "quest:GuiTu");
+            Check(Get<Button>(window, "relatedChecks").Visible, "全部任务应提供关联检查入口");
+            Get<Button>(window, "relatedChecks").PerformClick();
+            Check(list.Items.Cast<ListViewItem>().Where(i => Document(i).S("questId") != "").All(i => Document(i).S("questId") == "GuiTu"), "关联检查应聚焦所选任务的节点条件");
+            Get<RadioButton>(window, "allTasksView").PerformClick();
+            Check(Document(list.SelectedItems[0]).S("id") == "quest:GuiTu", "切回全部任务应保留之前选中的任务");
+
+            help = Show(window, catalog, slot);
+            window.CheckPageFilter(7, 0); Get<Button>(window, "currentMap").PerformClick();
+            Row[] notices = help.Entries.Where(e => e.Flag("notice") && (e.Flag("stageRelated") || MapHelp.Related(e, "XiGu"))).ToArray();
+            int count = notices.Select(e => e.S("questId") == "" ? e.S("id") : "quest:" + e.S("questId")).Distinct().Count();
+            Check(notices.Length > 1 && Get<Label>(window, "reminder").Text.Contains(notices.Length + " 项提醒"), "摘要应统计全部阶段提醒，列表按任务合并");
             float compact = Get<RowStyle>(window, "reminderRow").Height;
             Get<Button>(window, "reminderToggle").PerformClick();
-            Check(Get<RowStyle>(window, "reminderRow").Height > compact && Get<Button>(window, "reminderToggle").Text == "收起", "提醒可展开查看并保留收起入口");
+            Check(Get<RowStyle>(window, "reminderRow").Height > compact, "提醒可展开");
             Get<Button>(window, "reminderToggle").PerformClick();
-            Check(Get<RowStyle>(window, "reminderRow").Height == compact, "收起提醒应恢复紧凑摘要");
+            Check(Get<RowStyle>(window, "reminderRow").Height == compact, "提醒可收起");
             Get<Button>(window, "viewReminders").PerformClick();
-            Check(Get<ComboBox>(window, "filter").Text == "当前提醒" && list.Items.Count == count, "查看提醒应集中展示当前地图未忽略的全部提醒");
-            Pick(list, medicineReward);
-            Check(Get<RichTextBox>(window, "detail").Text.Contains("关联任务：见习医师") && Get<Button>(window, "fullDetails").Enabled, "底部保留奖励摘要和主动展开攻略的入口");
+            Check(Get<ComboBox>(window, "filter").Text == "当前提醒" && list.Items.Count == count, "查看提醒应展示合并后的任务清单");
+            const string medicineTask = "quest:JianXiYiShi";
+            Pick(list, medicineTask);
+            Check(Get<RichTextBox>(window, "detail").Text.Contains("核对香薰药盒") && Get<Button>(window, "fullDetails").Enabled, "任务摘要应包含独立奖励核对并保留全文入口");
             Get<Button>(window, "ignoreReminder").PerformClick();
-            Check(list.Items.Count == count - 1 && !list.Items.Cast<ListViewItem>().Any(i => Document(i).S("id") == medicineReward), "忽略应移除当前提醒，同时保留事实记录");
+            Check(list.Items.Count == count - 1, "忽略应移除该任务当前显示的提醒");
             Show(window, catalog, slot);
-            Check(window.CheckPageFilter(7, 5) == 1, "刷新同一存档后应保留本次运行的忽略选择");
-            Check(Get<Button>(window, "restoreReminder").Visible && Get<TaskDetails>(window, "taskDetails").Quests["JianXiYiShi"].S("state") == "done", "忽略不应改写任务状态，且应提供恢复入口");
+            Check(window.CheckPageFilter(7, 5) == 1, "同一存档刷新后应保留本次忽略选择");
+            Check(Get<Button>(window, "restoreReminder").Visible && Get<TaskDetails>(window, "taskDetails").Quests["JianXiYiShi"].S("state") == "done", "忽略不应改写任务状态，且应支持恢复");
             Get<Button>(window, "restoreReminder").PerformClick();
-            Check(list.Items.Count == 0 && window.CheckPageFilter(7, 4) == count, "恢复提醒后应重新出现在提醒清单");
-            Pick(list, medicineReward); Get<Button>(window, "ignoreReminder").PerformClick();
+            Check(list.Items.Count == 0 && window.CheckPageFilter(7, 4) == count, "恢复后应重新出现在当前提醒中");
+            Pick(list, medicineTask); Get<Button>(window, "ignoreReminder").PerformClick();
             Show(window, catalog, Slot("XiGu", 1));
             Check(window.CheckPageFilter(7, 5) == 0, "不同周目不得沿用忽略状态");
             Show(window, catalog, slot);
             string[] files = Get<string[]>(window, "files"), otherFiles = files.Select(f => f + ".another").ToArray();
             Set(window, "files", otherFiles); Show(window, catalog, slot);
-            Check(window.CheckPageFilter(7, 5) == 0, "不同存档文件不得沿用忽略状态");
+            Check(window.CheckPageFilter(7, 5) == 0, "不同文件不得沿用忽略状态");
             Set(window, "files", files); Show(window, catalog, slot);
             var slots = Get<ComboBox>(window, "slot"); int previousSlot = slots.SelectedIndex;
             Set(window, "updating", true); slots.SelectedIndex = previousSlot == 0 ? 1 : 0; Set(window, "updating", false);
@@ -123,13 +168,11 @@ namespace PBZ.Native
             Check(window.CheckPageFilter(7, 5) == 0, "不同槽位不得沿用忽略状态");
             Set(window, "updating", true); slots.SelectedIndex = previousSlot; Set(window, "updating", false);
             Show(window, catalog, slot);
-            Check(window.CheckPageFilter(7, 5) == 1, "切回原文件、槽位和周目应恢复相应的忽略选择");
+            Check(window.CheckPageFilter(7, 5) == 1, "切回原文件、槽位和周目应恢复相应选择");
             Get<Button>(window, "restoreReminder").PerformClick();
             window.CheckPageFilter(7, 0);
-            string preview = Environment.GetEnvironmentVariable("PBZ_MAP_HELP_PREVIEW");
-            if (!string.IsNullOrEmpty(preview))
-                using (var bitmap = new Bitmap(window.Width, window.Height)) { window.DrawToBitmap(bitmap, window.ClientRectangle); bitmap.Save(preview); }
-            Check(original == Data.Serializer().Serialize(slot), "地图帮助和提醒操作不得改写存档内容");
+            Preview(window, "");
+            Check(original == Data.Serializer().Serialize(slot), "任务帮助和提醒操作不得改写存档");
             Console.WriteLine("地图助手与可忽略提醒验证通过");
         }
     }

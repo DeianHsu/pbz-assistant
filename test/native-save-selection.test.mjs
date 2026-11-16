@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-test('原生窗口支持地图助手、提醒控制、无存档浏览与选档详情', { skip: process.platform !== 'win32', timeout: 60000 }, () => {
+test('原生窗口支持合并任务助手、节点与任务互查、提醒控制及收集范围', { skip: process.platform !== 'win32', timeout: 60000 }, () => {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const work = path.join(root, '.local');
   fs.mkdirSync(work, { recursive: true });

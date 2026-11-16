@@ -65,7 +65,7 @@ namespace PBZ.Native
             Check(documents.Nodes["valley"].S("phase") == "已越过节点" && documents.Nodes["valley"].S("state") != "failed", "越过节点不等于任务失败");
             Check(documents.Nodes["jingye"].Rows("steps").All(s => !s.Flag("current")), "仅可检查的未接任务不能标记为当前进行");
             Check(documents.Nodes.Count == 21 && documents.Checks.Count == p.Gates.Sum(g => g.Rows("items").Length), "所有节点与检查项都必须有详情");
-            Check(documents.Nodes["pangzhen"].Rows("steps").Any(s => s.Get("evidence").S("kind") == "branch"), "节点详情必须包含关联任务的完整步骤");
+            Check(documents.Nodes["pangzhen"].Rows("steps").Length == 2 && documents.Nodes["pangzhen"].Rows("steps").All(s => s.S("section") == "本节点检查"), "节点详情只保留本节点条件，关联任务完整流程单独查阅");
             foreach (Row document in documents.Quests.Values.Concat(documents.Nodes.Values).Concat(documents.Checks.Values))
                 foreach (Row step in document.Rows("steps")) Check(step.S("mapName") != "" && step.S("stateLabel") != "", "每一步都必须显示地图及完成状态");
             Check(TaskDetails.CheckState(Data.Make("state", "failed", "stateLabel", "提前击杀风险")) == "unknown", "风险证据不足时不能当作确认失败");
