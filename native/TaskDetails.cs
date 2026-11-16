@@ -200,11 +200,12 @@ namespace PBZ.Native
             }
             Row[] steps = definitions.Select(s => Step(id, quest, s)).ToArray();
             string current = CurrentSteps(steps);
+            bool finished = (state == "done" || quest.Flag("settled")) && !quest.Flag("actionable");
             string activeTargets = string.Join("、", quest.Rows("branches").Where(b => b.Flag("active")).Select(b => b.S("objective")).Where(s => s != ""));
             string destinations = Join(quest.Rows("targets").Where(t => t.S("rawMap") != "").Select(t =>
                 t.S("area") + " · " + t.S("person") + (t.S("next") == "" ? "" : "：" + t.S("next"))).Distinct().ToArray());
-            string next = reason != "" ? recovery : current != "" ? current : destinations != "" ? destinations : activeTargets != "" ? activeTargets
-                : state == "done" ? "任务已完成；独立奖励和收集步骤仍按各自证据核对。" : quest.Flag("canAccept") ? "先完成接取步骤。" : "当前进行到哪一步尚不能从存档确定。";
+            string next = finished ? "已完成" : reason != "" ? recovery : current != "" ? current : destinations != "" ? destinations : activeTargets != "" ? activeTargets
+                : quest.Flag("canAccept") ? "先完成接取步骤。" : "当前进行到哪一步尚不能从存档确定。";
             string evidenceText = Join("任务状态：" + label, "当前日志目标：" + activeTargets.Or("无可读取的活动目标"), failure.S("evidence"));
             string blocker = Blocker(quest, reason);
             string[] notes = guide.Strings("notes").Concat(new[] { quest.S("catalogNote"),
@@ -213,7 +214,8 @@ namespace PBZ.Native
             return Data.Make("id", "quest:" + id, "questId", id, "title", title, "state", state, "stateLabel", label, "archive", quest.S("catalogNote") != "", "reason", reason, "recovery", recovery,
                 "evidence", evidenceText, "next", next, "blocker", blocker, "steps", steps, "notes", notes,
                 "sources", guide.Strings("sources").Concat(quest.Rows("targets").Select(t => t.S("source"))).Concat(new[] { failure.S("source") }).Where(s => s != "").Distinct().ToArray(),
-                "summary", Join(title + " · " + label, "当前进度：" + next, reason == "" ? "推进条件与卡点：" + blocker : "失败／中断原因：" + reason));
+                "summary", finished ? title + " · 已完成" : Join(title + " · " + label, "当前进度：" + next,
+                    reason == "" ? "推进条件与卡点：" + blocker : "失败／中断原因：" + reason));
         }
         public static string CheckState(Row item)
         {

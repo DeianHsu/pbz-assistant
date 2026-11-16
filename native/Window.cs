@@ -584,6 +584,31 @@ namespace PBZ.Native
                 yield return new ViewRow(new[] { name, state, access.S("label"), bell, place }, detailText, group);
             }
         }
+        static string ListGoal(Row document, Row[] targets, bool done = false)
+        {
+            if (done || document.S("state") == "done" || document.Flag("settled")) return "已完成";
+            if (document.S("state") == "failed" || document.S("state") == "interrupted") return document.S("stateLabel");
+            if (document.S("state") == "unknown") return "进度未知";
+            Row target = targets.FirstOrDefault();
+            if (target != null && target.S("rawMap") == "") return "进度未知";
+            Row[] steps = document.Rows("steps").Where(s => s.Flag("current") && (target == null || s.S("map") == target.S("rawMap"))).ToArray();
+            string targetName = target.S("person"), bell = target.S("bell");
+            if (bell != "" && targetName.EndsWith("·" + bell, StringComparison.Ordinal)) targetName = targetName.Substring(0, targetName.Length - bell.Length - 1);
+            string goal = steps.FirstOrDefault().S("title").Or(targetName);
+            int count = targets.Length > 0 ? targets.Length : steps.Length;
+            return goal == "" ? document.S("state") == "missing" ? "未接取" : "进度未知"
+                : goal + (count > 1 ? "（另 " + (count - 1) + " 项）" : "");
+        }
+        static string ListCondition(Row[] targets)
+        {
+            Row[] conditions = targets.Where(t => t.Get("access").S("state") == "locked" || t.Get("access").S("state") == "unknown").ToArray();
+            if (conditions.Length == 0) return "";
+            Row first = conditions[0];
+            if (first.Flag("future")) return "后续地区";
+            if (first.Get("access").S("state") == "unknown") return first.Get("access").S("label");
+            string reason = first.Get("access").S("reason").Split(new[] { '。', '；', '\r', '\n' })[0];
+            return reason.StartsWith("尚需：", StringComparison.Ordinal) ? reason.Substring(3) : reason;
+        }
         IEnumerable<ViewRow> QuestRows(string mode)
         {
             string map = Selected(region), kind = Selected(category);
@@ -607,7 +632,7 @@ namespace PBZ.Native
                 yield return new ViewRow(new[] { quest.S("name"), document.S("stateLabel"),
                     string.Join("、", (targets.Length == 0 ? document.Rows("steps").Select(s => s.S("mapName")) : targets.Select(t => t.S("area"))).Distinct()),
                     targets.Length == 0 ? MapHelp.Phase(document.Rows("steps").Select(s => s.S("map"))) : string.Join("、", targets.Select(t => t.S("phase")).Distinct()),
-                    document.S("next"), document.S("reason").Or(quest.S("catalogNote")).Or(document.S("blocker")) }, DocumentText(document), archive ? "资源留档" : null) {
+                    ListGoal(document, targets, done), done ? "" : document.S("reason").Or(quest.S("catalogNote")).Or(ListCondition(targets)) }, DocumentText(document), archive ? "资源留档" : null) {
                     Document = document, Warning = document.S("reason") != ""
                 };
             }
@@ -678,9 +703,12 @@ namespace PBZ.Native
                 Row document = basis.With("id", group.Key, "summary", text, "dismissible", noticeIds.Length > 0, "helpPhase", phase,
                     "helpAction", action, "helpText", conditions, "maps", shown.SelectMany(e => e.Strings("maps")).Distinct().ToArray(),
                     "noticeIds", noticeIds, "ignored", mode == "5");
-                string hint = notices.Replace("\r\n", "；");
+                Row activeQuest = shown.FirstOrDefault(e => e.S("helpKind") == "quest");
+                string goal = activeQuest == null ? shown[0].S("title") + (shown.Count > 1 ? "（另 " + (shown.Count - 1) + " 项）" : "") : ListGoal(activeQuest, activeQuest.Rows("targets"));
+                string condition = activeQuest == null ? "" : ListCondition(activeQuest.Rows("targets"));
+                string notice = shown.Count(e => e.S("helpKind") != "quest") > 0 ? "提醒 " + shown.Count(e => e.S("helpKind") != "quest") + " 项" : "";
                 string section = mode == "1" ? "前置未满足" : mode == "6" ? "存档证据不足" : shown.All(e => !MapHelp.Related(e, map.Or(mapHelp.CurrentMap))) ? "跨地图提醒" : "当前地图";
-                yield return new ViewRow(new[] { document.S("title"), maps, phase, document.S("stateLabel"), action.Replace("\r\n", "；"), conditions.Replace("\r\n", "；"), hint },
+                yield return new ViewRow(new[] { document.S("title"), maps, phase, document.S("stateLabel"), goal, condition, notice },
                     DocumentText(document), section + " · " + maps) {
                     Document = document, Warning = basis.S("reason") != "" || shown.Any(e => e.S("reason") != "")
                 };

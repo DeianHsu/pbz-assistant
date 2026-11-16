@@ -75,11 +75,20 @@ namespace PBZ.Native
             var futureNavigation = new QuestNavigation(future, futureCollections);
             var unknown = new TaskDetails(future, futureCollections, futureNavigation, new Row[0]);
             Check(unknown.Quests["GuiTu"].Rows("steps").All(s => !s.Flag("current")), "未知状态不能依靠残留活动分支标记当前步骤");
+            window.ShowData(future, futureCollections, futureNavigation);
+            window.CheckPageFilter(3, 4);
+            var uncertain = Get<ListView>(window, "list").Items.Cast<ListViewItem>().Single(i => Get<Row>(i.Tag, "Document").S("questId") == "GuiTu");
+            Check(uncertain.SubItems[4].Text == "进度未知", "无法确定进度时使用短标签，不重复解释性句子");
 
             window.ShowData(p, collected, navigation);
             window.CheckPageFilter(3, 4);
             var list = Get<ListView>(window, "list");
+            var completed = list.Items.Cast<ListViewItem>().Single(i => Get<Row>(i.Tag, "Document").S("questId") == "XiaoCui");
+            Check(completed.SubItems[4].Text == "已完成" && completed.SubItems[5].Text == "", "完成项的目标只显示已完成，条件列留空");
+            Check(cui.S("next") == "已完成" && cui.S("summary") == cui.S("title") + " · 已完成", "完成项的摘要也只保留任务名和已完成");
+            Check(Get<Row>(completed.Tag, "Document").Rows("steps").Any(s => s.Get("reward") != null && s.S("state") != "done"), "压短完成状态不能改写独立奖励的实际记录");
             ListViewItem selected = list.Items.Cast<ListViewItem>().First(i => Get<Row>(i.Tag, "Document").S("id") == "quest:GuiTu");
+            Check(selected.SubItems[4].Text == "告知老根头密道已通", "列表只显示当前操作，地图、步骤编号和解释放在详情");
             selected.Selected = true;
             Application.DoEvents();
             var reader = new DetailsWindow { Opacity = 0, ShowInTaskbar = false };

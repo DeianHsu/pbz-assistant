@@ -53,7 +53,7 @@ namespace PBZ.Native
         static void BackstreetProgress(Window window)
         {
             Catalog catalog = SaveSelectionTest.EmptyCatalog();
-            foreach (string id in new[] { "MainCh2-SiZhen", "MainCh2-XinZhiZongJi", "MainCh2-SiDaSheWu", "XueRouHua", "WuShiZunZhu", "BaiShanMiWen", "JianXiYiShi", "Unmapped" })
+            foreach (string id in new[] { "MainCh2-SiZhen", "MainCh2-XinZhiZongJi", "MainCh2-SiDaSheWu", "XueRouHua", "WuShiZunZhu", "BaiShanMiWen", "JianXiYiShi", "DaoJianFoXin", "Unmapped" })
                 catalog.Quests.Add(Data.Make("id", id, "name", Progress.Guides.Get("questGuides").Get(id).S("name").Or(id), "type", "Other", "branches", new Row()));
             Set(catalog, "Maps", new[] {
                 Data.Make("id", "PangZhen", "name", "庞镇地区", "members", new[] { "PangZhen", "HouJie" }, "points", new[] {
@@ -69,6 +69,7 @@ namespace PBZ.Native
                 Record("WuShiZunZhu", "Started", new string[0], "1"),
                 Record("BaiShanMiWen", "Started", new string[0], "1"),
                 Record("JianXiYiShi", "Succeeded", new string[0], ""),
+                Record("DaoJianFoXin", "Started", new string[0], "1"),
                 Record("Unmapped", "Started", new string[0], "1") };
             slot.Get("EventPipeline").Dict()["GlobalTags"] = new[] { "pz.击杀.堕落将军" };
             slot.Get("Inventory").Get("AccessoryInfos").Dict()["AC_Drink"] = Data.Make("AcquiredCycle", 0);
@@ -77,6 +78,8 @@ namespace PBZ.Native
             window.CheckPageFilter(7, 0);
             Get<Button>(window, "currentMap").PerformClick();
             var list = Get<ListView>(window, "list");
+            var sword = list.Items.Cast<ListViewItem>().Single(i => Document(i).S("questId") == "DaoJianFoXin");
+            Check(sword.SubItems[4].Text.Contains("青铜精华"), "精简目标时仍须保留要取得的物品，不能只留下地点");
             foreach (string id in new[] { "MainCh2-SiZhen", "MainCh2-SiDaSheWu", "MainCh2-XinZhiZongJi", "XueRouHua", "JianXiYiShi", "Unmapped" })
                 Check(!list.Items.Cast<ListViewItem>().Any(i => Document(i).S("questId") == id), "当前可做不得混入已完成、未接、其他目的地、前置不满足或证据不足的任务：" + id + "\n" +
                     list.Items.Cast<ListViewItem>().Select(Document).FirstOrDefault(d => d.S("questId") == id).S("summary"));
@@ -107,6 +110,11 @@ namespace PBZ.Native
             Check(list.Columns.Cast<ColumnHeader>().Any(c => c.Text == "目标地图") && list.Columns.Cast<ColumnHeader>().Any(c => c.Text == "阶段"), "全部任务也必须直接显示地图和阶段");
             var trace = list.Items.Cast<ListViewItem>().Single(i => Document(i).S("questId") == "MainCh2-XinZhiZongJi");
             Check(trace.SubItems[2].Text == "庞镇地区" && !trace.SubItems[2].Text.Contains("后街"), "整条任务曾涉及后街，不能覆盖当前活动分支实际要去的景炀轩");
+            var memories = list.Items.Cast<ListViewItem>().Single(i => Document(i).S("questId") == "WuShiZunZhu");
+            Check(memories.SubItems[4].Text.StartsWith("舞狮尊主的记忆") && memories.SubItems[4].Text.EndsWith("（另 2 项）") && !memories.SubItems[4].Text.Contains("后续地区"), "多个目标在列表中只保留一个名称和剩余数量");
+            Check(Document(memories).S("next").Contains("后续地区"), "其他目标的完整位置和路线仍保留在详情中");
+            var unaccepted = list.Items.Cast<ListViewItem>().Single(i => Document(i).S("questId") == "MainCh2-SiDaSheWu");
+            Check(unaccepted.SubItems[4].Text == "未接取", "没有接取记录时直接使用短状态");
             Check(original == Data.Serializer().Serialize(slot), "当前目标筛选不得修改原始存档");
             Console.WriteLine("庞镇后街当前目标、阶段分流与前置判定验证通过");
         }
