@@ -46,3 +46,17 @@ test('小翠的跨地图流程、战前交付与战后奖励分开，白雪儿�
   assert.equal(choices.length, 2);
   assert.notEqual(choices[0].unlessTag, choices[1].unlessTag);
 });
+
+test('奖励核对显式标注领取条件，准备物品和珍宝收集不会被当作结算漏领', () => {
+  for (const [id, guide] of Object.entries(questGuides)) for (const step of guide.steps.filter(s => s.reward)) {
+    assert.equal(step.evidence?.kind, 'item', id + ':' + step.title);
+    assert.ok(['done', 'branch', 'crusherVictory'].includes(step.reward.kind), id + ':' + step.title);
+    if (step.reward.kind === 'branch') assert.ok(step.reward.step, id);
+  }
+  assert.equal(questGuides.XiaoCui.steps.find(s => s.evidence?.id === 'TU_11007').reward.kind, 'crusherVictory');
+  assert.equal(questGuides.GuiTu.steps.find(s => s.evidence?.id === 'K_05004').reward.step, '2');
+  for (const id of ['HuXinMiMi', 'SanMianHunDun', 'MiaoShouKongKong']) assert.ok(questGuides[id].steps.every(s => !s.reward), id);
+  const checks = checkpoints.flatMap(g => g.requirements);
+  assert.ok(checks.filter(c => c.reward).every(c => c.check === 'item'));
+  for (const item of ['XieHuo', 'R_070001', 'T_12002']) assert.ok(checks.filter(c => c.item === item).every(c => !c.reward), item + '是任务前置或普通收集');
+});

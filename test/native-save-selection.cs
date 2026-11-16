@@ -150,7 +150,7 @@ namespace PBZ.Native
                 Check(GameDiscovery.Searches == searches, "手动读取不应扫描默认存档目录");
                 Check(Get<Progress>(window, "progress").Cycle == 3, "打开新文件须使用该文件的继续游戏槽位");
                 Check(Get<Label>(window, "status").Text.Contains(args[3]), "状态栏须显示当前文件路径");
-                Check(window.CheckPages().Length == 7, "手动读取后全部页面须能正常填充");
+                Check(window.CheckPages().Length == 8, "手动读取后全部页面须能正常填充");
                 await Select(window, "slot", 0);
                 Check(Get<Progress>(window, "progress").Cycle == 2, "手动存档须支持槽位切换");
                 File.Copy(args[4], args[3], true);
@@ -202,6 +202,7 @@ namespace PBZ.Native
                 Check(Slot(window).EndsWith("05"), "显示进度须与所选槽位一致");
                 Check(Get<Button>(window, "chooseSave").Enabled && autoButton.Enabled, "读取结束须恢复选择入口");
                 DetailsTests.Run(window);
+                MapHelpTests.Run(window);
                 window.Close();
             }
             Console.WriteLine("存档选择验证通过");

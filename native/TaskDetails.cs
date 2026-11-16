@@ -75,6 +75,7 @@ namespace PBZ.Native
                     return Progress.BranchCompleted(record, evidence.S("step"));
                 case "tag": return p.Tag(evidence.S("id"));
                 case "item": return p.Acquired(evidence.S("id"), evidence.S("category"));
+                case "crusherVictory": return p.KnownTags ? (bool?)(p.State(id) == "done" && p.StageInfo.Flag("afterCrusher")) : null;
                 case "objective":
                     Row[] definitions = Progress.Guides.Get("questObjectives").Rows(id);
                     int index = evidence.N("index", -1);
@@ -122,7 +123,20 @@ namespace PBZ.Native
                 : "按所选槽位的" + (evidence.S("kind") == "item" || evidence.S("kind") == "objective" ? "物品或目标记录" : "任务或事件记录") + "判断。";
             if (branchActive) proof = Join(proof, "当前游戏目标：" + quest.Rows("branches").FirstOrDefault(b => b.S("id") == evidence.S("step")).S("objective"));
             return definition.With("map", map, "mapName", MapName(map), "place", place, "title", title, "text", text,
+                "rewardReady", definition.Get("reward") != null && Evidence(id, definition.Get("reward").Dict()) == true,
                 "state", state, "stateLabel", label, "current", active && !skipped, "proof", proof);
+        }
+        static string Blocker(Row quest, string reason)
+        {
+            if (reason != "") return reason;
+            if (quest.S("state") == "done") return "任务已结算，奖励领取情况按物品记录分别核对。";
+            string[] conditions = quest.Rows("targets").Where(t => t.Get("access").S("state") == "locked" || t.Get("access").S("state") == "unknown")
+                .Select(t => Join(t.S("person"), t.Get("access").S("reason"))).Where(s => s != "").Distinct().ToArray();
+            if (conditions.Length > 0) return "以下目标的条件或位置仍需核对：\r\n" + Join(conditions);
+            if (quest.Flag("canAccept")) return "当前已知接取条件满足；可按人物或触发点信息查找入口。";
+            if (quest.S("state") == "unknown") return "当前任务状态无法识别，尚不能判断卡点；可对照游戏日志与完整攻略。";
+            if (quest.S("state") == "missing") return "所选槽位没有接取记录，接取条件仍需结合地图和游戏日志核对。";
+            return "当前已知条件中没有明确阻碍，可按活动目标查阅对应地点和操作。";
         }
         Row Quest(Row quest)
         {
@@ -152,13 +166,14 @@ namespace PBZ.Native
             string next = reason != "" ? recovery : current != "" ? current : activeTargets != "" ? activeTargets + "（攻略步骤映射待核实）"
                 : state == "done" ? "任务已完成；独立奖励和收集步骤仍按各自证据核对。" : quest.Flag("canAccept") ? "先完成接取步骤。" : "当前进行到哪一步尚不能从存档确定。";
             string evidenceText = Join("任务状态：" + label, "当前日志目标：" + activeTargets.Or("无可读取的活动目标"), failure.S("evidence"));
+            string blocker = Blocker(quest, reason);
             string[] notes = guide.Strings("notes").Concat(new[] { quest.S("catalogNote"),
                 quest.S("stateLabel") != label ? "路线提示：" + quest.S("stateLabel") : "",
                 guide.Count == 0 ? "此任务尚未核对人工文字路线，下面展示游戏原生目标。" : "" }).Where(s => s != "").ToArray();
-            return Data.Make("id", "quest:" + id, "title", title, "state", state, "stateLabel", label, "reason", reason, "recovery", recovery,
-                "evidence", evidenceText, "next", next, "steps", steps, "notes", notes,
+            return Data.Make("id", "quest:" + id, "title", title, "state", state, "stateLabel", label, "archive", quest.S("catalogNote") != "", "reason", reason, "recovery", recovery,
+                "evidence", evidenceText, "next", next, "blocker", blocker, "steps", steps, "notes", notes,
                 "sources", guide.Strings("sources").Concat(quest.Rows("targets").Select(t => t.S("source"))).Concat(new[] { failure.S("source") }).Where(s => s != "").Distinct().ToArray(),
-                "summary", Join(title + " · " + label, "当前进度：" + next, reason == "" ? "" : "失败／中断原因：" + reason));
+                "summary", Join(title + " · " + label, "当前进度：" + next, reason == "" ? "推进条件与卡点：" + blocker : "失败／中断原因：" + reason));
         }
         public static string CheckState(Row item)
         {

@@ -117,22 +117,22 @@ export const additionalCheckpoints = [
   { id: 'mu-rewards', name: '沐小葵战后离场前', regions: ['LuJiaCun'], source: sources.walkthrough.url,
     note: '按实际持有记录核对一次性场景的奖励。旧周目继承的武器只证明当前持有，不证明本周目触发了隐藏战。',
     requirements: [
-      { check: 'item', category: 'weapon', item: 'YuuBlade', title: '领取隐藏追加战奖励妖锯', action: '收齐丝带并打完追加战后领取妖锯；后续用它完成“延时爆破”。', achievements: ['ACH_058'] },
-      { check: 'item', category: 'goods', item: 'TU_02002', title: '领取拳心碎片·核', action: '检查追加战奖励；它与后期拳心碎片·壳关联铁拳套铸魂。', achievements: ['ACH_047'], impact: '铸魂候选材料，计数成就可用其他影之武装替代。' },
-      { check: 'item', category: 'weapon', item: 'LuanYing', title: '离场前拾取乱莺剑', action: '检查沐小葵场景码头的宝箱，取得后再离开。', achievements: ['ACH_041'], impact: '武器铸魂候选，缺失不必然阻断成就。' },
+      { check: 'item', reward: true, category: 'weapon', item: 'YuuBlade', title: '领取隐藏追加战奖励妖锯', action: '收齐丝带并打完追加战后领取妖锯；后续用它完成“延时爆破”。', achievements: ['ACH_058'] },
+      { check: 'item', reward: true, category: 'goods', item: 'TU_02002', title: '领取拳心碎片·核', action: '检查追加战奖励；它与后期拳心碎片·壳关联铁拳套铸魂。', achievements: ['ACH_047'], impact: '铸魂候选材料，计数成就可用其他影之武装替代。' },
+      { check: 'item', reward: true, category: 'weapon', item: 'LuanYing', title: '离场前拾取乱莺剑', action: '检查沐小葵场景码头的宝箱，取得后再离开。', achievements: ['ACH_041'], impact: '武器铸魂候选，缺失不必然阻断成就。' },
       { quest: 'XiaoCui', accepted: true, title: '接取小翠并取得红头绳', action: '在人偶试验场与人偶小翠对话，开启后续陆三迁与父母的路线。', impact: '后续饰品与铸魂材料。' }
     ] },
   { id: 'lu-well', name: '陆家村水井与僧人对话前', regions: ['LuJiaCun'], source: sources.alternatives.url,
     note: '“一个不留”的精确断点有单一攻略报告；先推进再进井属于保守路线。对话奖励单独核对，任务完成不代替奖励入包。',
     requirements: [
       { quest: 'YiGeBuLiu', title: '优先推进一个不留', action: '回访驿站和飞贼营地，处理遗物交付；在离开本段剧情前检查尚未完成的目标。', verification: '单一来源的保守建议' },
-      { check: 'item', category: 'accessory', item: 'AC_BreakRecover', title: '核对沉香念珠的对话奖励', action: '幸存者小院僧人对话时留意“不信奉”选项；对话前留手动档，随后核对饰品。', source: sources.missables.url, achievements: ['ACH_046'], impact: '30种饰品成就有其他饰品可替代。' }
+      { check: 'item', reward: true, category: 'accessory', item: 'AC_BreakRecover', title: '核对沉香念珠的对话奖励', action: '幸存者小院僧人对话时留意“不信奉”选项；对话前留手动档，随后核对饰品。', source: sources.missables.url, achievements: ['ACH_046'], impact: '30种饰品成就有其他饰品可替代。' }
     ] },
   { id: 'qixing', name: '红衣女剑客与七星剑阵前', regions: ['Zhengdaodaying'], source: sources.qixing.url,
     note: '不要在单独遭遇时击杀红衣女剑客。先通过锁链脱战，留待大师兄战共同解决，战后分别检查花瓣和饰品。',
     requirements: [
-      { check: 'item', category: 'goods', item: 'F_03001', title: '取得双侠花瓣“自己的决定”', action: '保持红衣女剑客存活至大师兄战，战后调查大师兄尸体。当前未持有时，这是战前路线提醒。', achievements: ['ACH_044'], impact: '记忆之花计数有其他完整花可替代。' },
-      { check: 'item', category: 'accessory', item: 'AC_LowShachi', title: '取得同心双鱼佩', action: '完成双人战后调查红衣女剑客尸体；单独提前击杀会漏奖励。', achievements: ['ACH_046'], impact: '饰品计数有其他饰品可替代。' },
+      { check: 'item', reward: true, category: 'goods', item: 'F_03001', title: '取得双侠花瓣“自己的决定”', action: '保持红衣女剑客存活至大师兄战，战后调查大师兄尸体。当前未持有时，这是战前路线提醒。', achievements: ['ACH_044'], impact: '记忆之花计数有其他完整花可替代。' },
+      { check: 'item', reward: true, category: 'accessory', item: 'AC_LowShachi', title: '取得同心双鱼佩', action: '完成双人战后调查红衣女剑客尸体；单独提前击杀会漏奖励。', achievements: ['ACH_046'], impact: '饰品计数有其他饰品可替代。' },
       { quest: 'MoJiaoZhiNv', check: 'red-route', title: '保留魔教之女的后续路线', action: '在鸽舍附近完成女剑客相关对话，通过锁链脱战，避免提前击杀；七星双人战与战后奖励另行检查。', source: sources.qixing.url }
     ] },
   { id: 'chivalry', name: '遇到挣扎的正道高手时', regions: ['Zhengdaodaying', 'Pangzhen', 'HouJie'], source: sources.alternatives.url,
@@ -177,7 +177,7 @@ export const additionalCheckpoints = [
       verification: '按小翠的战前分支、陆解元的营地事件和首领战入战事件核对。' }] },
   { id: 'crusher-reward', name: '力者和锯者战后', source: sources.cui.url,
     note: '奖励检查独立于战前会面，避免要求玩家在开打前取得战后材料。',
-    requirements: [{ check: 'item', category: 'goods', item: 'TU_11007', title: '领取白山派头带', action: '战后与小翠父亲完成最后对话并检查铸魂材料。', achievements: ['ACH_041'], impact: '武器铸魂候选，计数成就允许其他武器替代。' }] },
+    requirements: [{ check: 'item', reward: true, category: 'goods', item: 'TU_11007', title: '领取白山派头带', action: '战后与小翠父亲完成最后对话并检查铸魂材料。', achievements: ['ACH_041'], impact: '武器铸魂候选，计数成就允许其他武器替代。' }] },
   { id: 'treasures', name: '妙手拾遗：五地珍宝交付', planning: true, source: sources.trophies.url,
     note: '收集与交付分开核对。游戏资源中识别到16件珍宝，梅谷湖任务条件为3件；部分攻略写4件，因此以本机任务条件及物品表为准。',
     requirements: treasureGroups.map(group => ({ quest: 'MiaoShouKongKong', branch: group.branch, title: '交付' + group.name + '珍宝', action: '集齐本地区清单后，回对应藏身处找小张交付。', achievements: ['ACH_039'] })) },

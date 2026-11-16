@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-test('原生窗口支持无存档攻略浏览、选档刷新、独立详情及逐步进度', { skip: process.platform !== 'win32', timeout: 60000 }, () => {
+test('原生窗口支持地图助手、提醒控制、无存档浏览与选档详情', { skip: process.platform !== 'win32', timeout: 60000 }, () => {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const work = path.join(root, '.local');
   fs.mkdirSync(work, { recursive: true });
@@ -74,11 +74,12 @@ test('原生窗口支持无存档攻略浏览、选档刷新、独立详情及�
       .map(name => path.join(root, 'native', name));
     run(compiler, ['/nologo', '/target:exe', '/platform:x64', '/codepage:65001', `/out:${exe}`, `/resource:${guides},PBZ.Guides`,
       '/reference:System.Web.Extensions.dll', '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll',
-      ...sources, path.join(root, 'test/native-save-selection.cs'), path.join(root, 'test/native-details.cs')]);
+      ...sources, path.join(root, 'test/native-save-selection.cs'), path.join(root, 'test/native-details.cs'), path.join(root, 'test/native-map-help.cs')]);
     const output = run(exe, [game, automatic, secondAccount, manual, updated, invalid]);
     assert.match(output, /存档选择验证通过/);
     assert.match(output, /详情窗口与逐步进度验证通过/);
     assert.match(output, /无存档资料浏览验证通过/);
+    assert.match(output, /地图助手与可忽略提醒验证通过/);
   } finally {
     assert.equal(path.dirname(path.resolve(temp)), path.resolve(work));
     fs.rmSync(temp, { recursive: true, force: true });

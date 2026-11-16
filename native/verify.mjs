@@ -67,7 +67,7 @@ for (const [index, account] of old.accounts.entries()) for (const state of accou
   rows('quest targets', slot, state.quests.map(q => [q.id, q.state, q.navigation.riskLevel,
     q.navigation.targets.map(t => [t.mapId, t.person, t.access.state]), q.stateLabel, q.catalogNote]), next.quests);
 }
-if (!Array.isArray(native.pages) || native.pages.length !== 7 || native.pages.some(count => !Number.isInteger(count) || count < 0))
+if (!Array.isArray(native.pages) || native.pages.length !== 8 || native.pages.some(count => !Number.isInteger(count) || count < 0))
   issues.push({ scope: 'pages', actual: native.pages });
 const filtered = native.filteredPages;
 const selected = old.accounts[0]?.states.find(s => s.selectedSlot === filtered?.slot);

@@ -43,10 +43,10 @@ const baseCheckpoints = [
 ];
 
 baseCheckpoints.find(g => g.id === 'baichilian').requirements.push(
-  { check: 'item', category: 'accessory', item: 'AC_ResistNonBreak', title: '核对坚岩护腕', action: '彭猛前后分别与驿站的正道弟子对话，再去坟前领取；检查实际饰品记录。', achievements: ['ACH_046'], impact: '30种饰品有替代物，不是单件必需成就。' },
-  { check: 'item', category: 'phantom', item: 'UnnamedBow', title: '确认羽弓已经领取', action: '清理门户完成后核对羽弓，别只停留在取得任务物品的阶段。', achievements: ['ACH_047'] },
-  { check: 'item', category: 'accessory', item: 'AC_Stealth', title: '核对盗亦有道的屏息绑带', action: '问答完成后检查饰品奖励。', achievements: ['ACH_046'], impact: '饰品计数有替代物。' },
-  { check: 'item', category: 'accessory', item: 'AC_Drink', title: '核对见习医师的香薰药盒', action: '检查玉儿交付后的饰品奖励。', achievements: ['ACH_046'], impact: '饰品计数有替代物。' }
+  { check: 'item', reward: true, category: 'accessory', item: 'AC_ResistNonBreak', title: '核对坚岩护腕', action: '彭猛前后分别与驿站的正道弟子对话，再去坟前领取；检查实际饰品记录。', achievements: ['ACH_046'], impact: '30种饰品有替代物，不是单件必需成就。' },
+  { check: 'item', reward: true, category: 'phantom', item: 'UnnamedBow', title: '确认羽弓已经领取', action: '清理门户完成后核对羽弓，别只停留在取得任务物品的阶段。', achievements: ['ACH_047'] },
+  { check: 'item', reward: true, category: 'accessory', item: 'AC_Stealth', title: '核对盗亦有道的屏息绑带', action: '问答完成后检查饰品奖励。', achievements: ['ACH_046'], impact: '饰品计数有替代物。' },
+  { check: 'item', reward: true, category: 'accessory', item: 'AC_Drink', title: '核对见习医师的香薰药盒', action: '检查玉儿交付后的饰品奖励。', achievements: ['ACH_046'], impact: '饰品计数有替代物。' }
 );
 baseCheckpoints.find(g => g.id === 'baishan').regions = ['Zhengdaodaying'];
 baseCheckpoints.find(g => g.id === 'qingshe').note = '游戏资源出现泣声何来的中断标签。与“进入戏梦山庄”的十任务总复核分别显示，精确事件触发尚未实机复现。';

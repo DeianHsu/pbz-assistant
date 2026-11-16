@@ -13,7 +13,8 @@ namespace PBZ.Native
 {
     internal sealed class Window : Form
     {
-        static readonly string[] Pages = { "行前检查", "地图收集", "全收集品", "任务路线", "成就", "小张珍宝", "资料来源" };
+        static readonly string[] Pages = { "行前检查", "地图收集", "全收集品", "任务路线", "成就", "小张珍宝", "资料来源", "地图助手" };
+        static readonly int[] PageOrder = { 7, 0, 1, 2, 3, 4, 5, 6 };
         const string FailedQuestsLabel = "已失败或中断";
         static readonly Color Background = Color.FromArgb(22, 29, 37);
         static readonly Color Ink = Color.FromArgb(30, 40, 48);
@@ -26,6 +27,7 @@ namespace PBZ.Native
         static readonly int[] TemperWidths = { 175, 100, 160, 170, 140 };
         static readonly int[] QuestWidths = { 175, 108, 220, 110, 200, 260 };
         static readonly int[] AchievementWidths = { 190, 108, 298, 365 };
+        static readonly int[] HelpWidths = { 220, 150, 210, 390 };
         readonly ComboBox account = Combo(150), slot = Combo(260);
         readonly ComboBox region = Combo(178), category = Combo(144), filter = Combo(156);
         readonly TextBox search = new TextBox { Width = 184 };
@@ -37,6 +39,13 @@ namespace PBZ.Native
         readonly RowStyle reminderRow = new RowStyle(SizeType.Absolute, 0);
         readonly Label reminder = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, ForeColor = Danger,
             BackColor = Color.FromArgb(255, 235, 226), Padding = new Padding(10, 0, 10, 0), Margin = new Padding(0), Visible = false };
+        readonly Panel reminders = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(255, 235, 226), Margin = new Padding(0), Visible = false };
+        readonly Button reminderToggle = new Button { Text = "展开", AutoSize = true };
+        readonly Button viewReminders = new Button { Text = "查看提醒", AutoSize = true };
+        readonly Button currentMap = new Button { Text = "当前地图", AutoSize = true };
+        readonly Button ignoreReminder = new Button { Text = "本次忽略", AutoSize = true, Visible = false };
+        readonly Button restoreReminder = new Button { Text = "恢复提醒", AutoSize = true, Visible = false };
+        readonly HashSet<string> ignoredReminders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         readonly Label status = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, ForeColor = Muted, AutoEllipsis = true };
         readonly Label title = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, ForeColor = Ink };
         readonly Button refresh = new Button { Text = "重新读取存档", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(9, 1, 9, 1) };
@@ -57,8 +66,9 @@ namespace PBZ.Native
         QuestNavigation navigation;
         Row[] achievementPlans;
         TaskDetails taskDetails = new TaskDetails();
+        MapHelp mapHelp;
         DetailsWindow detailsWindow;
-        bool updating, busy;
+        bool updating, busy, remindersCollapsed = true;
         int page;
 
         sealed class Choice
@@ -105,6 +115,7 @@ namespace PBZ.Native
 
         public Window()
         {
+            mapHelp = new MapHelp(taskDetails);
             Text = "影之刃零 · 行前检查";
             Font = new Font("Microsoft YaHei UI", 10);
             AutoScaleMode = AutoScaleMode.Dpi;
@@ -123,7 +134,7 @@ namespace PBZ.Native
                 Font = new Font(Font.FontFamily, 14, FontStyle.Bold) };
             nav.BackColor = Background;
             nav.ForeColor = Color.White;
-            nav.Items.AddRange(Pages);
+            nav.Items.AddRange(PageOrder.Select(i => Pages[i]).ToArray());
             nav.DrawItem += DrawNav;
             sidebar.Controls.Add(brand, 0, 0);
             sidebar.Controls.Add(nav, 0, 1);
@@ -149,7 +160,7 @@ namespace PBZ.Native
             banner.Controls.Add(overview);
             title.Font = new Font(Font.FontFamily, 18, FontStyle.Bold);
             var filterBar = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, AutoScroll = true, Margin = new Padding(0) };
-            filterBar.Controls.AddRange(new Control[] { region, category, filter, Label("搜索", Ink), search });
+            filterBar.Controls.AddRange(new Control[] { region, category, filter, Label("搜索", Ink), search, currentMap });
             split.Panel1.Controls.Add(list);
             var detailFrame = new TableLayoutPanel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(13, 7, 8, 5), RowCount = 2, ColumnCount = 1 };
             detailFrame.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
@@ -157,6 +168,8 @@ namespace PBZ.Native
             var detailTools = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false };
             detailTools.Controls.Add(new Label { Text = "当前摘要", AutoSize = true, Margin = new Padding(0, 7, 10, 0) });
             detailTools.Controls.Add(fullDetails);
+            detailTools.Controls.Add(ignoreReminder);
+            detailTools.Controls.Add(restoreReminder);
             detailFrame.Controls.Add(detailTools, 0, 0);
             detailFrame.Controls.Add(detail, 0, 1);
             split.Panel2.Controls.Add(detailFrame);
@@ -167,7 +180,11 @@ namespace PBZ.Native
             };
             body.Controls.Add(savesBar, 0, 0);
             body.Controls.Add(banner, 0, 1);
-            body.Controls.Add(reminder, 0, 2);
+            var reminderTools = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new Padding(3, 0, 3, 0) };
+            reminderTools.Controls.AddRange(new Control[] { reminderToggle, viewReminders });
+            reminders.Controls.Add(reminder);
+            reminders.Controls.Add(reminderTools);
+            body.Controls.Add(reminders, 0, 2);
             body.Controls.Add(title, 0, 3);
             body.Controls.Add(filterBar, 0, 4);
             body.Controls.Add(split, 0, 5);
@@ -178,7 +195,7 @@ namespace PBZ.Native
             nav.SelectedIndexChanged += delegate
             {
                 if (nav.SelectedIndex < 0) return;
-                page = nav.SelectedIndex;
+                page = PageOrder[nav.SelectedIndex];
                 Configure();
             };
             account.SelectedIndexChanged += delegate { if (!updating) SelectAccount(); };
@@ -195,6 +212,18 @@ namespace PBZ.Native
             chooseSave.Click += async delegate { await ChooseSave(); };
             findSaves.Click += async delegate { await Reload(null); };
             fullDetails.Click += delegate { OpenDetails(); };
+            currentMap.Click += delegate { rememberedRegion[7] = null; Configure(); };
+            reminderToggle.Click += delegate { remindersCollapsed = !remindersCollapsed; UpdateReminders(); };
+            viewReminders.Click += delegate
+            {
+                rememberedRegion[7] = null;
+                rememberedFilter[7] = mapHelp.Entries.Any(e => e.Flag("notice") && MapHelp.Related(e, mapHelp.CurrentMap) && !IsIgnored(e)) ? "4" : "5";
+                rememberedSearch[7] = "";
+                nav.SelectedIndex = 0;
+                Configure();
+            };
+            ignoreReminder.Click += delegate { SetIgnored(true); };
+            restoreReminder.Click += delegate { SetIgnored(false); };
             KeyPreview = true;
             KeyDown += async delegate(object sender, KeyEventArgs e) { if (e.KeyCode == Keys.F5) { e.Handled = true; await Reload(manualSave); } };
             nav.SelectedIndex = 0;
@@ -207,7 +236,7 @@ namespace PBZ.Native
             bool selected = (e.State & DrawItemState.Selected) != 0;
             using (var brush = new SolidBrush(selected ? Color.FromArgb(43, 66, 78) : Background)) e.Graphics.FillRectangle(brush, e.Bounds);
             if (selected) using (var brush = new SolidBrush(Color.FromArgb(122, 211, 188))) e.Graphics.FillRectangle(brush, e.Bounds.Left, e.Bounds.Top, 4, e.Bounds.Height);
-            TextRenderer.DrawText(e.Graphics, Pages[e.Index], Font, new Rectangle(e.Bounds.X + 18, e.Bounds.Y, e.Bounds.Width - 18, e.Bounds.Height),
+            TextRenderer.DrawText(e.Graphics, nav.Items[e.Index].ToString(), Font, new Rectangle(e.Bounds.X + 18, e.Bounds.Y, e.Bounds.Width - 18, e.Bounds.Height),
                 Color.White, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
         }
         void SetBusy(bool value, string message)
@@ -315,21 +344,47 @@ namespace PBZ.Native
             navigation = n;
             achievementPlans = new AchievementPlan(p, c, n).Rows;
             taskDetails = new TaskDetails(p, c, n, achievementPlans);
+            mapHelp = new MapHelp(taskDetails, p, n);
             if (detailsWindow != null && !detailsWindow.IsDisposed)
             {
                 string id = detailsWindow.DocumentId;
-                Row updated = taskDetails.Quests.Values.Concat(taskDetails.Nodes.Values).Concat(taskDetails.Checks.Values).FirstOrDefault(d => d.S("id") == id);
+                Row updated = mapHelp.Entries.Concat(taskDetails.Quests.Values).Concat(taskDetails.Nodes.Values).Concat(taskDetails.Checks.Values).FirstOrDefault(d => d.S("id") == id);
                 detailsWindow.ShowDocument(updated ?? Data.Make("id", id, "title", "当前任务", "stateLabel", "存档未记录",
                     "summary", "所选槽位没有这条任务或检查的可读取记录。", "next", "请查看所选槽位的任务列表。"), DetailContext());
             }
             string location = c.Regions.FirstOrDefault(r => r.Flag("current")).S("name").Or(p.Location);
             overview.Text = p.StageInfo.S("name") + "  ·  " + location + "  ·  最近铃铛 " + p.Bell.Or("未记录") +
                 "  ·  第 " + (p.Cycle < 0 ? "?" : (p.Cycle + 1).ToString()) + " 周目";
-            reminder.Text = p.Gates.Where(g => !g.Flag("passed")).SelectMany(g => g.Rows("items"))
-                .FirstOrDefault(NeedsReminder).S("alert");
-            reminderRow.Height = reminder.Text == "" ? 0 : reminder.Font.Height * 2 + 8;
-            reminder.Visible = reminder.Text != "";
+            UpdateReminders();
             Configure();
+        }
+        string ReminderKey(Row document)
+        {
+            return DetailContext() + "|" + (progress == null ? "资料浏览" : progress.Cycle.ToString()) + "|" + document.S("id");
+        }
+        bool IsIgnored(Row document) { return ignoredReminders.Contains(ReminderKey(document)); }
+        void SetIgnored(bool ignored)
+        {
+            if (list.SelectedItems.Count == 0) return;
+            Row document = ((ViewRow)list.SelectedItems[0].Tag).Document;
+            if (!document.Flag("dismissible")) return;
+            if (ignored) ignoredReminders.Add(ReminderKey(document));
+            else ignoredReminders.Remove(ReminderKey(document));
+            UpdateReminders();
+            Populate();
+        }
+        void UpdateReminders()
+        {
+            Row[] related = mapHelp.CurrentMap == "" ? new Row[0] : mapHelp.Entries.Where(e => e.Flag("notice") && MapHelp.Related(e, mapHelp.CurrentMap)).ToArray();
+            Row[] active = related.Where(e => !IsIgnored(e)).ToArray();
+            int ignored = related.Length - active.Length;
+            reminders.Visible = reminder.Visible = related.Length > 0;
+            reminderToggle.Enabled = active.Length > 0;
+            reminderToggle.Text = remindersCollapsed ? "展开" : "收起";
+            viewReminders.Text = active.Length > 0 ? "查看提醒" : "查看已忽略";
+            reminder.Text = "当前地图 " + active.Length + " 项提醒" + (ignored > 0 ? " · 已忽略 " + ignored + " 项" : "") + " · 按最近读取的存档核对";
+            if (!remindersCollapsed) reminder.Text += "\r\n" + string.Join("\r\n", active.Take(3).Select(e => e.S("title") + " · " + e.S("helpLabel")));
+            reminderRow.Height = related.Length == 0 ? 0 : reminder.Font.Height * (1 + (remindersCollapsed ? 0 : Math.Min(3, active.Length))) + 16;
         }
         void Configure()
         {
@@ -381,12 +436,20 @@ namespace PBZ.Native
                 case 5:
                     filters = Options("当前待收集或交付", "已交付", "全部地区");
                     break;
+                case 7:
+                    filters = Options("地图相关", "任务卡点", "风险提示", "奖励核对", "当前提醒", "已忽略提醒");
+                    regions = new[] { Option("", "全部地区") }.Concat(Progress.Guides.Get("navigationMaps").Dict().Keys.Select(m => Option(m, TaskDetails.MapName(m))))
+                        .Concat(new[] { Option("Dream", TaskDetails.MapName("Dream")) });
+                    defaultRegion = mapHelp.CurrentMap;
+                    break;
                 default: filters = new Choice[0]; break;
             }
             Set(region, regions, rememberedRegion[page] ?? defaultRegion);
             Set(category, categories, rememberedCategory[page] ?? "", fitText: true);
             Set(filter, filters, rememberedFilter[page] ?? "0");
             if (progress == null && page == 3) rememberedFilter[page] = Selected(filter);
+            currentMap.Visible = page == 7;
+            currentMap.Enabled = mapHelp.CurrentMap != "";
             updating = false;
             Populate();
         }
@@ -613,6 +676,28 @@ namespace PBZ.Native
                 }
             }
         }
+        IEnumerable<ViewRow> HelpRows(string mode)
+        {
+            string map = Selected(region);
+            foreach (Row entry in mapHelp.Entries)
+            {
+                if (!MapHelp.Related(entry, map)) continue;
+                bool ignored = IsIgnored(entry);
+                if (mode == "5" ? !ignored : ignored) continue;
+                string kind = entry.S("helpKind");
+                if (mode == "1" && kind != "quest" || mode == "2" && kind != "risk" || mode == "3" && kind != "reward" || mode == "4" && !entry.Flag("notice")) continue;
+                Row[] steps = entry.Rows("steps").Where(s => map == "" || s.S("map") == map || s.S("map") == "Any").ToArray();
+                string place = entry.S("helpPlace").Or(steps.FirstOrDefault().S("place"));
+                string local = kind != "quest" ? "" : string.Join("、", steps.Select(s => s.S("title") + "（" + s.S("stateLabel") + "）").Take(3));
+                Row document = entry.With("summary", Lines(entry.S("summary"), local == "" ? "" : (map == "" ? "可参考的攻略步骤：" : "本地图可参考的步骤：") + local,
+                    entry.Flag("dismissible") ? "提醒可在本次运行中忽略或恢复，按存档文件、槽位和周目区分。" : ""));
+                string group = kind == "quest" ? "相关任务" : kind == "risk" ? "风险提示" : "奖励核对";
+                yield return new ViewRow(new[] { document.S("title"), entry.S("helpLabel") + (ignored ? " · 已忽略" : ""), place,
+                    entry.S("helpText").Replace("\r\n", " ") }, DocumentText(document), group) {
+                    Document = document, Warning = document.S("reason") != ""
+                };
+            }
+        }
         IEnumerable<ViewRow> AchievementRows(string mode)
         {
             string kind = Selected(category);
@@ -696,6 +781,11 @@ namespace PBZ.Native
                 rows = Progress.Guides.Get("sources").Dict().Values.Select(source =>
                     new ViewRow(new[] { source.S("title"), source.S("url") }, Lines(source.S("title"), source.S("url"))));
             }
+            if (page == 7)
+            {
+                columns = new[] { "相关事项", "状态", "地点或人物", "条件与说明" };
+                rows = HelpRows(mode);
+            }
             int sort = sortColumns[page];
             bool descending = sortDescending[page];
             if (sort >= columns.Length) sort = -1;
@@ -718,7 +808,7 @@ namespace PBZ.Native
                 list.Items.Clear();
                 list.Groups.Clear();
                 list.Columns.Clear();
-                int[] widths = page == 2 ? mode == "4" ? TemperWidths : CollectionWidths : page == 3 && progress != null ? QuestWidths : page == 4 ? AchievementWidths : null;
+                int[] widths = page == 7 ? HelpWidths : page == 2 ? mode == "4" ? TemperWidths : CollectionWidths : page == 3 && progress != null ? QuestWidths : page == 4 ? AchievementWidths : null;
                 for (int i = 0; i < columns.Length; i++)
                 {
                     int width = widths != null ? widths[i]
@@ -730,7 +820,7 @@ namespace PBZ.Native
                 foreach (ViewRow row in rows)
                 {
                     if (query != "" && !row.Text.Has(query) && !row.Cells.Any(cell => cell.Has(query)) && !(row.Group ?? "").Has(query)) continue;
-                    var item = new ListViewItem(row.Cells) { Tag = row, ForeColor = row.Warning ? Danger : Ink };
+                    var item = new ListViewItem(row.Cells) { Tag = row, ForeColor = page == 7 && IsIgnored(row.Document) ? Muted : row.Warning ? Danger : Ink };
                     if (sort < 0 && !string.IsNullOrEmpty(row.Group))
                     {
                         ListViewGroup group;
@@ -762,6 +852,8 @@ namespace PBZ.Native
                 if (page == 3 && navigation != null && mode == "5") subtitle = list.Items.Count + " 项可接取";
                 if (page == 4 && achievementPlans != null) subtitle = achievementPlans.Count(a => a.S("availability") == "done") + "/" + achievementPlans.Length + " 已解锁  ·  " +
                     achievementPlans.Count(a => a.S("availability") == "ready") + " 前置已满足  ·  " + achievementPlans.Count(a => a.S("availability") == "locked") + " 暂不可取";
+                if (page == 7) subtitle = Selected(region) == "" ? "全部地区" : TaskDetails.MapName(Selected(region));
+                if (page == 7) subtitle += " · " + (progress == null ? "未读取存档" : Selected(region) != "" && Selected(region) == mapHelp.CurrentMap ? "存档中的当前地图" : "查阅地区") + " · " + list.Items.Count + " 项";
                 title.Text = Pages[page] + (subtitle == "" ? "" : "   /   " + subtitle);
             }
             finally { list.EndUpdate(); }
@@ -771,8 +863,13 @@ namespace PBZ.Native
         {
             var selected = list.SelectedItems.Count == 0 ? null : list.SelectedItems[0].Tag as ViewRow;
             fullDetails.Enabled = selected != null && selected.Document != null;
+            bool dismissible = page == 7 && selected != null && selected.Document.Flag("dismissible");
+            ignoreReminder.Visible = dismissible && !IsIgnored(selected.Document);
+            restoreReminder.Visible = dismissible && IsIgnored(selected.Document);
             string empty = page == 3 && Selected(filter) == "5" && list.Items.Count == 0 ? "当前筛选没有已核对可接的未接任务。" : "当前筛选没有条目。";
-            detail.Text = selected == null ? progress == null && page != 0 && page != 3 && page != 6
+            if (page == 7) empty = Selected(filter) == "4" ? "所选地区没有待显示的提醒。已忽略的内容可在“已忽略提醒”中恢复。"
+                : Selected(filter) == "5" ? "所选地区没有已忽略的提醒。" : "当前地区和筛选没有匹配的事项，可切换地图或搜索条件。";
+            detail.Text = selected == null ? progress == null && page != 0 && page != 3 && page != 6 && page != 7
                 ? "本页需要读取游戏资源和存档。可先在“任务路线”和“行前检查”浏览全部任务与文字攻略。" : empty : selected.Document != null ? selected.Document.S("summary") : selected.Text +
                 (page == 0 && selected.Achievement != null ? "\r\n\r\n双击列表条目查看关联成就。" :
                     (page == 3 || page == 4) && !string.IsNullOrEmpty(selected.Gate) ? "\r\n\r\n双击列表条目查看关联行前检查。" : "");
@@ -807,13 +904,13 @@ namespace PBZ.Native
                 rememberedFilter[4] = "3";
                 rememberedCategory[4] = "";
                 rememberedSearch[4] = progress.Achievements.FirstOrDefault(a => a.S("id") == item.Achievement).S("name");
-                nav.SelectedIndex = 4;
+                nav.SelectedIndex = Array.IndexOf(PageOrder, 4);
             }
             else if ((page == 3 || page == 4) && !string.IsNullOrEmpty(item.Gate))
             {
                 rememberedFilter[0] = "3";
                 rememberedSearch[0] = progress.Gates.FirstOrDefault(g => g.S("id") == item.Gate).S("name");
-                nav.SelectedIndex = 0;
+                nav.SelectedIndex = Array.IndexOf(PageOrder, 0);
             }
             else if (page == 6) OpenLink(item.Cells[1]);
         }
@@ -830,15 +927,15 @@ namespace PBZ.Native
             var result = new int[Pages.Length];
             for (int i = 0; i < Pages.Length; i++)
             {
-                nav.SelectedIndex = i;
+                nav.SelectedIndex = Array.IndexOf(PageOrder, i);
                 result[i] = list.Items.Count;
             }
-            nav.SelectedIndex = 0;
+            nav.SelectedIndex = Array.IndexOf(PageOrder, 0);
             return result;
         }
         internal int CheckPageFilter(int pageIndex, int filterIndex)
         {
-            nav.SelectedIndex = pageIndex;
+            nav.SelectedIndex = Array.IndexOf(PageOrder, pageIndex);
             filter.SelectedIndex = filterIndex;
             return list.Items.Count;
         }

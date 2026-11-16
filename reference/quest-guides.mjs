@@ -28,13 +28,13 @@ guide('JianXiYiShi', '见习医师', [
   step('XiGu', '远眺龙柱处·木桥对面', '采集凝脂叶', '过铃铛左侧木桥，贴左侧墙跳上对面平台，再往左找药材。', objective(1)),
   step('XiGu', '溪谷龙柱·龙头雕像前的道路', '采集金创草', '由凝脂叶附近右侧洞穴穿到龙柱一侧，在龙头正对的路上调查光点。', objective(2)),
   finish('XiGu', '驿站铁匠铺旁·玉儿', '击败荆野前回到玉儿处，交齐三味药材并结束对话。'),
-  step('XiGu', '驿站·玉儿', '核对香薰药盒', '交付后核对饰品奖励，任务完成与奖励入包分别检查。', item('AC_Drink', 'accessory'))
+  step('XiGu', '驿站·玉儿', '核对香薰药盒', '交付后核对饰品奖励，任务完成与奖励入包分别检查。', item('AC_Drink', 'accessory'), { reward: done })
 ], [], ['https://www.gamersky.com/handbook/202610/2236093_6.shtml']);
 guide('QingLiMenHu', '清理门户', [
   step('XiGu', '恶弓手营地', '处理老弓手的委托', '按任务目标前往恶弓手营地，击败相关弟子并调查任务物品。', objective(0)),
   step('XiGu', '恶弓手营地', '取得羽弓', '处理营地目标后拾取羽弓，不要只击败敌人而漏捡。', objective(1)),
   finish('XiGu', '驿站屋顶·老弓手', '返回屋顶找老弓手，交还羽弓并完成对话。应在白赤练战及营地变异前处理。'),
-  step('XiGu', '驿站屋顶', '核对影之武装奖励', '在装备中确认羽弓已领取。', item('UnnamedBow', 'phantom'))
+  step('XiGu', '驿站屋顶', '核对影之武装奖励', '在装备中确认羽弓已领取。', item('UnnamedBow', 'phantom'), { reward: done })
 ]);
 guide('NanYanZhiYin', '难言之隐', [
   step('XiGu', '驿站主路·彭猛战场', '调查彭猛留下的信', '击败斧老大彭猛，调查战后留下的绝笔信。'),
@@ -48,7 +48,7 @@ guide('DaoYiYouDao', '盗亦有道', [
   step('FuJiZhiLin', '亡命徒陷阱旁·滑溜手', '拾取飞贼血书', '击败滑溜手后调查掉落的血书。', objective(0)),
   step('FuJiZhiLin', '飞贼营地·梁上君', '交还血书并完成问答', '找到梁上君，交出血书，逐项完成相关问答；具体回答以当前游戏对话为准。', branch('1')),
   finish('FuJiZhiLin', '飞贼营地', '结束交付对话，应在白赤练及营地变异前完成。'),
-  step('FuJiZhiLin', '飞贼营地', '检查屏息绑带', '问答结算后核对饰品奖励。', item('AC_Stealth', 'accessory'))
+  step('FuJiZhiLin', '飞贼营地', '检查屏息绑带', '问答结算后核对饰品奖励。', item('AC_Stealth', 'accessory'), { reward: done })
 ]);
 guide('JiuSiFuShang', '救死扶伤', [
   ...[0, 1, 2, 3].map(i => step('FuJiZhiLin', '飞贼营地及周边伤患处', '救治第' + (i + 1) + '名飞贼', '在营地及相邻路线找到受伤飞贼，完成救治对话。四名伤患分别读取存档事件；位置由地图收集页的本地点位辅助核对。', objective(i))),
@@ -72,7 +72,7 @@ guide('GeJueXieZi', '隔绝楔子', [
 guide('GuiTu', '归途', [
   step('LuJiaCun', '水井底部与飞贼密道', '打通通往庞镇的密道', '先推进陆家村主线，打通井底密道。打通后先返回村口。', branch('1')),
   step('LuJiaCun', '村口·老根头藏身处', '告知老根头密道已通', '进入庞镇前与老根头对话，明确完成告知目标。', branch('2')),
-  step('LuJiaCun', '村口·老根头', '取得故屋钥匙', '回报密道已通后继续对话，领取故屋钥匙。后街开门与烧枝分别需要该钥匙和烈焰狮头。', item('K_05004')),
+  step('LuJiaCun', '村口·老根头', '取得故屋钥匙', '回报密道已通后继续对话，领取故屋钥匙。后街开门与烧枝分别需要该钥匙和烈焰狮头。', item('K_05004'), { reward: branch('2') }),
   step('HouJie', '老根头家·黄灯笼房子', '调查家中遗物', '用钥匙进入故屋，按屋内人物的对话取得旧木梳。两种故屋分支以日志实际目标为准。', objective(1), { activeBranches:['3-A','3-B'] }),
   finish('LuJiaCun', '村口·老根头', '返回陆家村把遗物交给老根头，完成归途。')
 ]);
@@ -111,7 +111,7 @@ guide('XiaoCui', '小翠', [
   step('DengDingShanDao', '宗祠·老人最后停留处', '领取给家人的信', '调查最后的对话和遗留物，保留给家人的绝笔信与红头绳。', item('R_070001')),
   step('DuanHunYa', '最后的正道营地·陆解元', '先交付并完成安葬', '挑战力者和锯者前交还红头绳与书信，同意安葬家人并完成墓前对话。', branch('5')),
   step('DuanHunYa', '力者和锯者战场', '再挑战首领', '确认战前交付已满足后再开战。进入战斗才补交信物会错过这条奖励路线。', tag('dhy.力者战斗.2阶段击杀')),
-  step('DuanHunYa', '首领战后·陆解元', '回访领取白山派头带', '战后找小翠父亲完成最后对话，检查白山派头带入包。', item('TU_11007'))
+  step('DuanHunYa', '首领战后·陆解元', '回访领取白山派头带', '战后找小翠父亲完成最后对话，检查白山派头带入包。', item('TU_11007'), { reward: { kind: 'crusherVictory' } })
 ], [], [sources.cui.url]);
 guide('WuXiangWang', '勿相忘', [
   step('DengDingShanDao', '周平子所在的推桥与牢笼处', '先推桥开笼救周平子', '挑战疯婆子奎艳艳前，帮助推桥并打开牢笼，与周平子完成救人对话。', branch('S1')),
@@ -135,15 +135,15 @@ guide('BaiXue', '白雪儿', [
   step('DengDingShanDao', '陈柱身旁的女性人偶', '取得小院钥匙', baiXueSteps.puppet.action, objective(0), { routeStep:'puppet' }),
   step('DengDingShanDao', '陈柱与女性人偶的对话结算处', '取得沾血的项链', '核对当前分支的对话奖励，拿到项链后再到后街小院。', objective(1)),
   step('HouJie', '青蛇屋铃铛至后街小院', '进入卧房并交项链', baiXueSteps.home.action, branch('2'), { routeStep:'home' }),
-  step('HouJie', '小院卧房·床边', '拾取第一片花瓣', baiXueSteps.petal1.action, item('F_06004'), { routeStep:'petal1' }),
-  step('HouJie', '小院水井附近', '拾取第二片花瓣', baiXueSteps.petal2.action, item('F_06022'), { routeStep:'petal2' }),
-  step('HouJie', '水井旁老槐树', '调查树下取得雪与血', baiXueSteps.tree.action, item('AC_Bleed', 'accessory'), { routeStep:'tree' })
+  step('HouJie', '小院卧房·床边', '拾取第一片花瓣', baiXueSteps.petal1.action, item('F_06004'), { routeStep:'petal1', reward: done }),
+  step('HouJie', '小院水井附近', '拾取第二片花瓣', baiXueSteps.petal2.action, item('F_06022'), { routeStep:'petal2', reward: done }),
+  step('HouJie', '水井旁老槐树', '调查树下取得雪与血', baiXueSteps.tree.action, item('AC_Bleed', 'accessory'), { routeStep:'tree', reward: done })
 ], ['陈柱交战与离开分支分别核对，不能只按是否击杀推断后续奖励。'], [sources.baiXue.url, sources.baiXueChoices.url]);
 guide('MoJiaoZhiNv', '魔教之女', [
   step('ZhengDaoDaYing', '鸽舍屋顶', '对话后沿锁链脱战', '与红衣女剑客完成相关对话，从锁链荡绳离开，避免在单独遭遇时击杀。', tag('zddy.红衣女剑客.荡绳离开')),
   step('ZhengDaoDaYing', '七星剑阵大师兄战场', '推进七星双人战', '继续剑阵路线，保持女剑客存活到对应共同战斗。', tag('zddy.剑阵.完成任务')),
-  step('ZhengDaoDaYing', '大师兄尸体', '调查花瓣', '战后调查大师兄尸体，核对花瓣“自己的决定”。', item('F_03001')),
-  step('ZhengDaoDaYing', '红衣女剑客尸体', '调查同心双鱼佩', '再调查红衣女剑客的尸体，核对饰品。两份奖励分开记录。', item('AC_LowShachi', 'accessory'))
+  step('ZhengDaoDaYing', '大师兄尸体', '调查花瓣', '战后调查大师兄尸体，核对花瓣“自己的决定”。', item('F_03001'), { reward: done }),
+  step('ZhengDaoDaYing', '红衣女剑客尸体', '调查同心双鱼佩', '再调查红衣女剑客的尸体，核对饰品。两份奖励分开记录。', item('AC_LowShachi', 'accessory'), { reward: done })
 ], [], [sources.qixing.url]);
 guide('BuMieXiaDan', '不灭侠胆', [
   step('ZhengDaoDaYing', '七星剑阵路线', '先推进剑阵领头人相关事件', '先见过并推进剑阵领头人的路线，再返回庞镇找狼头领。', branch('S1')),
