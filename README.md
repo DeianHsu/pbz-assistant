@@ -7,7 +7,7 @@
 ## 下载与使用
 
 1. 可直接运行助手浏览全部任务与节点检查。读取个人进度时，需安装 Steam 版《影之刃零》，并在游戏内至少保存一次。
-2. 下载可执行文件后双击运行。[下载 Windows 64 位版](https://github.com/DeianHsu/game-pbz-assistant/releases/download/v1.2.1/PBZ-Quest-Guard-1.2.1-native-win-x64.exe) · [发布页](https://github.com/DeianHsu/game-pbz-assistant/releases/tag/v1.2.1)
+2. 下载可执行文件后双击运行。[下载 Windows 64 位版](https://github.com/DeianHsu/pbz-assistant/releases/download/v1.2.1/PBZ-Quest-Guard-1.2.1-native-win-x64.exe) · [发布页](https://github.com/DeianHsu/pbz-assistant/releases/tag/v1.2.1)
 3. 助手会自动打开游戏「继续游戏」对应的槽位，进入「任务助手」的「当前进度」，结合阶段、地图及跨地图前置显示相关事项。查看其他进度时，在窗口顶部切换账号和槽位。
 4. 要查看其他位置的存档或备份，点击 **选择存档文件**，打开对应的 `.sav` 文件，再切换其中的槽位。点击 **自动查找** 可返回本机账号存档。
 5. 游戏再次保存后，点击 **重新读取存档** 或按 **F5** 更新进度。本次运行中，手动选择后会继续读取该文件；用窗口底部的保存时间和文件路径确认当前存档。
