@@ -39,6 +39,43 @@ namespace PBZ.Native
             var account = new Account(Data.Make("AutoSave0", slot), DateTime.UtcNow);
             return new Progress(catalog, account, "AutoSave0");
         }
+        static void CheckOtherLists(Window window)
+        {
+            window.CheckPageFilter(0, 3);
+            var list = Get<ListView>(window, "list");
+            var completed = list.Items.Cast<ListViewItem>().Where(i => Get<Row>(i.Tag, "Document").S("id").StartsWith("node-task:") && Get<Row>(i.Tag, "Document").S("state") == "done").ToArray();
+            Check(completed.Length > 0 && completed.All(i => i.SubItems[3].Text == "已完成"), "节点完成项只显示已完成");
+            var pending = list.Items.Cast<ListViewItem>().Single(i => Get<Row>(i.Tag, "Document").S("id") == "node-task:treasures:MiaoShouKongKong");
+            Check(!pending.SubItems[3].Text.Contains("\n") && pending.SubItems[3].Text.Contains("另 "), "节点的多个检查目标只显示一项和剩余数量");
+            Check(Get<Row>(pending.Tag, "Document").S("next").Contains("\n"), "节点各项条件及判定仍完整保留在详情");
+
+            const string fullGoal = "取得青铜精华；在铃铛处按配方为天玄青铜剑铸魂。";
+            const string fullReason = "这里保留当前剧情、装备和路线的完整判断依据。";
+            var plans = new[] {
+                Data.Make("id", "ACH_007", "name", "多条件成就", "state", "active", "availability", "ready", "availabilityLabel", "前置已满足", "category", "探索",
+                    "currentRequirement", fullGoal, "description", "完整的成就达成说明。", "availabilityReason", fullReason,
+                    "objectives", new[] { Data.Make("name", "第一项很长的目标名称", "value", 1), Data.Make("name", "第二项很长的目标名称", "value", null), Data.Make("name", "第三项很长的目标名称", "value", 0) }),
+                Data.Make("id", "ACH_014", "name", "账号已解锁成就", "state", "done", "availability", "done", "availabilityLabel", "已解锁", "category", "探索",
+                    "currentRequirement", "击败首领后继续推进支线和奖励。", "description", "已解锁成就的完整达成要求。",
+                    "progress", Data.Make("value", 0, "target", 10, "unit", "项")) };
+            typeof(Window).GetField("achievementPlans", Fields).SetValue(window, plans);
+            window.CheckPageFilter(4, 3);
+            var active = list.Items.Cast<ListViewItem>().Single(i => i.Text == "多条件成就");
+            Check(active.SubItems[2].Text == "取得青铜精华", "成就列表只显示关键目标");
+            Check(active.SubItems[3].Text.Contains("1/3") && active.SubItems[3].Text.Contains("未知") && !active.SubItems[3].Text.Contains("目标名称"), "成就进度只保留数量和未知项数，不能枚举整段目标名称");
+            foreach (ListViewItem item in list.Items) item.Selected = false;
+            active.Selected = true; Application.DoEvents();
+            Check(Get<RichTextBox>(window, "detail").Text.Contains(fullGoal) && Get<RichTextBox>(window, "detail").Text.Contains(fullReason) && Get<RichTextBox>(window, "detail").Text.Contains("第二项很长的目标名称"), "完整目标、判定原因与进度明细须在下方详情中可读");
+            var unlocked = list.Items.Cast<ListViewItem>().Single(i => i.Text == "账号已解锁成就");
+            Check(unlocked.SubItems[2].Text == "已完成" && unlocked.SubItems[3].Text == "", "已解锁成就不重复目标，也不展示旧槽位的未完成计数");
+
+            window.CheckPageFilter(6, -1);
+            var source = list.Items[0];
+            Check(!source.SubItems[1].Text.Contains("/") && !source.SubItems[1].Text.Contains("https:"), "资料来源列表只保留来源站点");
+            Check(Get<string>(source.Tag, "Text").Contains("https://"), "完整来源链接仍须保留在详情中");
+            Check(Get<string>(source.Tag, "Url").StartsWith("https://"), "双击来源使用完整链接，不能把显示的站点名当作链接");
+            Console.WriteLine("各页列表短文案与详情保留验证通过");
+        }
         public static void Run(Window window)
         {
             Catalog catalog = SaveSelectionTest.EmptyCatalog();
@@ -158,6 +195,7 @@ namespace PBZ.Native
             window.ShowData(future, futureCollections, futureNavigation);
             Check(Get<Label>(reader, "heading").Text.Contains("待核实"), "在其他页面切换存档时，已打开的任务详情也必须同步");
             reader.Close();
+            CheckOtherLists(window);
             Console.WriteLine("详情窗口与逐步进度验证通过");
         }
     }

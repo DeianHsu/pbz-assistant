@@ -61,7 +61,7 @@ namespace PBZ.Native
         {
             Catalog catalog = EmptyCatalog();
             foreach (string id in new[] { "Weapon_Material_01", "Ac_Material_01", "Medi_Material_01", "TU_15001", "TU_150011", "K_05004", "R_01010" })
-                catalog.Items.Add(Data.Make("id", id, "category", "goods", "name", "物品" + id, "rowName", id));
+                catalog.Items.Add(Data.Make("id", id, "category", "goods", "name", "物品" + id, "rowName", id, "description", "完整的收集路线说明保留在详情。"));
             Set(catalog, "Maps", new[] { Data.Make("id", "XiGu", "name", "悲泣溪谷", "members", new[] { "XiGu" }, "points", new Row[0]) });
             var emptyAmounts = Array.CreateInstance(typeof(SceneLoot).GetNestedType("Amount", BindingFlags.NonPublic), 0);
             Set(catalog, "ScenePickups", new[] { SceneLoot.MoneyCategory, SceneLoot.MaterialCategory }.Select((category, i) =>
@@ -70,6 +70,7 @@ namespace PBZ.Native
             Row slot = Data.Make("PBZGameSystem", Data.Make("CycleCount", 0, "CurrentLevelName", "XiGu"),
                 "Narrative", Data.Make("NarrativeSavedQuests", new Row[0]), "EventPipeline", Data.Make("GlobalTags", new string[0]),
                 "Inventory", Data.Make("InventoryInfos", new Row()));
+            slot.Get("Inventory").Get("InventoryInfos").Dict()["K_05004"] = Data.Make("AcquiredCycle", 0);
             var progress = new Progress(catalog, new Account(Data.Make("AutoSave0", slot), DateTime.UtcNow), "AutoSave0");
             var collections = new Collections(progress);
             Check(collections.Items.Length == 4 && collections.Categories.Sum(c => c.N("total")) == 4, "钱、场景普通材料和背包升级材料均不得计入全收集品总数");
@@ -79,6 +80,9 @@ namespace PBZ.Native
             Check(window.CheckPageFilter(2, 3) == 4, "全收集品目录应与修正后的统计一致");
             var list = Get<ListView>(window, "list");
             Check(list.Columns.Count == 5 && list.Columns.Cast<ColumnHeader>().All(c => !new[] { "意识尘埃", "武器材料" }.Contains(c.Text)), "全收集品应移除钱和普通材料列");
+            var collected = list.Items.Cast<ListViewItem>().Single(i => i.Text == "物品K_05004");
+            Check(collected.SubItems[1].Text == "已收集" && collected.SubItems[2].Text == "", "已收集条目不重复路线状态");
+            Check(Get<string>(collected.Tag, "Text").Contains("完整的收集路线说明保留在详情。"), "收集品的完整说明应保留在详情");
             Console.WriteLine("全收集品范围验证通过");
         }
         static async Task ReferenceBrowser(string[] args)

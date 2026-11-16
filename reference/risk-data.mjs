@@ -172,7 +172,7 @@ export const additionalCheckpoints = [
     ] },
   { id: 'crusher', name: '挑战力者和锯者前', regions: ['DuanHun', 'DengDing', 'HunDuan'], source: cuiCamp.source,
     note: '一旦进入首领战，小翠的战前会面就会关闭。战后再与陆解元对话领取白山派头带。',
-    requirements: [{ quest: 'XiaoCui', branch: cuiCamp.branch, check: 'cui-camp', title: '小翠 · 交付信物并安葬前，先别打力者和锯者',
+    requirements: [{ quest: 'XiaoCui', branch: cuiCamp.branch, check: 'cui-camp', title: '交付小翠信物并安葬',
       bell: cuiCamp.bell, action: cuiCamp.action, alert: cuiCamp.alert,
       verification: '按小翠的战前分支、陆解元的营地事件和首领战入战事件核对。' }] },
   { id: 'crusher-reward', name: '力者和锯者战后', source: sources.cui.url,
