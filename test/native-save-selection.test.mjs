@@ -80,6 +80,7 @@ test('原生窗口支持地图助手、提醒控制、无存档浏览与选档�
     assert.match(output, /详情窗口与逐步进度验证通过/);
     assert.match(output, /无存档资料浏览验证通过/);
     assert.match(output, /地图助手与可忽略提醒验证通过/);
+    assert.match(output, /全收集品范围验证通过/);
   } finally {
     assert.equal(path.dirname(path.resolve(temp)), path.resolve(work));
     fs.rmSync(temp, { recursive: true, force: true });

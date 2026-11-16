@@ -36,6 +36,15 @@ test('物品字段缺失保持未知，旧周目记录不能代替本周目完�
   assert.equal(result.items[0].state, 'missing'); assert.equal(result.items[1].state, 'unknown');
   assert.equal(result.done, 0);
 });
+
+test('全收集品排除普通升级材料，保留铸魂材料、部件和任务收集', () => {
+  const result = analyze(save(), [item('Weapon_Material_01'), item('Ac_Material_01'), item('Medi_Material_01'),
+    item('TU_15001'), item('TU_150011'), item('K_05004'), item('R_01010'), item('AC_A', 'accessory')]);
+  assert.deepEqual(result.items.map(i => i.id), ['TU_15001', 'TU_150011', 'K_05004', 'R_01010', 'AC_A']);
+  assert.equal(result.total, 5);
+  assert.equal(result.categories.reduce((n, c) => n + c.total, 0), result.total);
+  assert.ok(result.categories.every(c => !['material', 'money-point', 'weapon-material-point'].includes(c.id)));
+});
 test('剧情专用黑伤变体归入同一武器，有实际变体记录仍确认取得', () => {
   const s = save(); s.Inventory.MainWeaponInfos.TangPrologue = { AcquiredCycle: 1 };
   const result = analyze(s, [item('Tang', 'weapon'), item('TangPrologue', 'weapon')]);

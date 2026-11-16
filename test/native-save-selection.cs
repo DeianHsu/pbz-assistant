@@ -57,6 +57,30 @@ namespace PBZ.Native
             Set(catalog, "bells", new Dictionary<string, string>());
             return catalog;
         }
+        static void CheckCollections(Window window)
+        {
+            Catalog catalog = EmptyCatalog();
+            foreach (string id in new[] { "Weapon_Material_01", "Ac_Material_01", "Medi_Material_01", "TU_15001", "TU_150011", "K_05004", "R_01010" })
+                catalog.Items.Add(Data.Make("id", id, "category", "goods", "name", "物品" + id, "rowName", id));
+            Set(catalog, "Maps", new[] { Data.Make("id", "XiGu", "name", "悲泣溪谷", "members", new[] { "XiGu" }, "points", new Row[0]) });
+            var emptyAmounts = Array.CreateInstance(typeof(SceneLoot).GetNestedType("Amount", BindingFlags.NonPublic), 0);
+            Set(catalog, "ScenePickups", new[] { SceneLoot.MoneyCategory, SceneLoot.MaterialCategory }.Select((category, i) =>
+                Data.Make("actor", "拾取物" + i, "rawMap", "XiGu", "pickupCategories", new[] { category }, "position", new[] { 0, 0, 0 },
+                    "pickupType", "拾取物", "money", emptyAmounts, "materials", new Row[0])).ToArray());
+            Row slot = Data.Make("PBZGameSystem", Data.Make("CycleCount", 0, "CurrentLevelName", "XiGu"),
+                "Narrative", Data.Make("NarrativeSavedQuests", new Row[0]), "EventPipeline", Data.Make("GlobalTags", new string[0]),
+                "Inventory", Data.Make("InventoryInfos", new Row()));
+            var progress = new Progress(catalog, new Account(Data.Make("AutoSave0", slot), DateTime.UtcNow), "AutoSave0");
+            var collections = new Collections(progress);
+            Check(collections.Items.Length == 4 && collections.Categories.Sum(c => c.N("total")) == 4, "钱、场景普通材料和背包升级材料均不得计入全收集品总数");
+            Check(collections.Items.Any(i => i.S("category") == "soul") && collections.Items.Any(i => i.S("category") == "soul-part"), "铸魂材料及部件必须保留");
+            Check(collections.Categories.All(c => !new[] { "material", SceneLoot.MoneyCategory, SceneLoot.MaterialCategory }.Contains(c.S("id"))), "全收集品分类应移除普通资源");
+            window.ShowData(progress, collections, new QuestNavigation(progress, collections));
+            Check(window.CheckPageFilter(2, 3) == 4, "全收集品目录应与修正后的统计一致");
+            var list = Get<ListView>(window, "list");
+            Check(list.Columns.Count == 5 && list.Columns.Cast<ColumnHeader>().All(c => !new[] { "意识尘埃", "武器材料" }.Contains(c.Text)), "全收集品应移除钱和普通材料列");
+            Console.WriteLine("全收集品范围验证通过");
+        }
         static async Task ReferenceBrowser(string[] args)
         {
             GameDiscovery.MissingGame = true;
@@ -201,6 +225,7 @@ namespace PBZ.Native
                     "默认存档顺序改变后，刷新须保留所选账号和槽位");
                 Check(Slot(window).EndsWith("05"), "显示进度须与所选槽位一致");
                 Check(Get<Button>(window, "chooseSave").Enabled && autoButton.Enabled, "读取结束须恢复选择入口");
+                CheckCollections(window);
                 DetailsTests.Run(window);
                 MapHelpTests.Run(window);
                 window.Close();

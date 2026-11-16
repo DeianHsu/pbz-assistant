@@ -23,7 +23,7 @@ namespace PBZ.Native
         static readonly Row Status = Data.Make("done", "已收集", "missing", "未收集", "unknown", "待核实");
         static readonly Row TemperStatus = Data.Make("done", "已铸魂", "pending", "待铸魂", "unknown", "铸魂状态待核实");
         static readonly StringComparer ColumnTextOrder = StringComparer.Create(CultureInfo.GetCultureInfo("zh-CN"), true);
-        static readonly int[] CollectionWidths = { 165, 100, 196, 94, 108, 145, 134 };
+        static readonly int[] CollectionWidths = { 220, 110, 180, 170, 160 };
         static readonly int[] TemperWidths = { 175, 100, 160, 170, 140 };
         static readonly int[] QuestWidths = { 175, 108, 220, 110, 200, 260 };
         static readonly int[] AchievementWidths = { 190, 108, 298, 365 };
@@ -83,7 +83,6 @@ namespace PBZ.Native
             public string Text, Group, Gate, Achievement;
             public bool Warning;
             public Row Document;
-            public long? Money;
             public ViewRow(string[] cells, string text, string group = null) { Cells = cells; Text = text; Group = group; }
         }
         static ComboBox Combo(int width) { return new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = width, IntegralHeight = true, DropDownHeight = 320 }; }
@@ -544,7 +543,7 @@ namespace PBZ.Native
             var labels = (global ? collections.Categories : Progress.Guides.Rows("collectionCategories")).ToDictionary(r => r.S("id"), r => r.S("name"));
             foreach (Row item in rows)
             {
-                if (kind != "" && !Collections.MatchesCategory(item, kind)) continue;
+                if (kind != "" && item.S("category") != kind) continue;
                 Row access = item.Get("access").Dict(), guide = item.Get("guide").Dict();
                 var temper = item.Get("temper");
                 if (mode == "4" && temper.S("state") != "pending") continue;
@@ -556,7 +555,7 @@ namespace PBZ.Native
                 string group;
                 string groupId = kind.Or(item.S("category"));
                 if (!labels.TryGetValue(groupId, out group)) group = groupId;
-                string money = item.S("moneyText"), materials = item.S("materialsText"), state = Status.S(item.S("state"));
+                string state = Status.S(item.S("state"));
                 string temperState = TemperStatus.S(temper.S("state")), temperPlace = string.Join("、", temper.Strings("regionNames"));
                 string temperText = Lines(Labelled("铸魂", temperState), Labelled("铸魂形态", temper.S("form")),
                     Labelled("所需铸魂材料", temper.S("material")), Labelled("材料地区", temperPlace),
@@ -567,15 +566,13 @@ namespace PBZ.Native
                         Lines(name, temperText, temper.S("source")), group);
                     continue;
                 }
-                string detailText = Lines(name, item.S("subtitle"), Labelled("意识尘埃", money), Labelled("武器材料", materials),
+                string detailText = Lines(name, item.S("subtitle"),
                     item.S("description"), Labelled("适用装备", item.S("soulWeapon")), Labelled("合成产物", item.S("soulProduct")), temperText,
                     Labelled("地区", place), Labelled("附近铃铛", bell),
                     access.S("reason"), Steps(global ? item.Strings("steps") : guide.Strings("steps")),
                     Lines(item.Rows("nearest").Select(b => b.S("name") + " 约 " + b.N("distance") + " 米" + (b.Flag("activated") ? "（已激活）" : "")).ToArray()),
                     Labelled("游戏标识", item.S("id").Or(item.S("key"))), Sources(guide.S("source"), guide.S("mapUrl"), access.S("source"), temper.S("source")));
-                string[] cells = global ? new[] { name, money, materials, state, access.S("label"), bell, place }
-                    : new[] { name, state, access.S("label"), bell, place };
-                yield return new ViewRow(cells, detailText, group) { Money = item.Get("moneySort") as long? };
+                yield return new ViewRow(new[] { name, state, access.S("label"), bell, place }, detailText, group);
             }
         }
         IEnumerable<ViewRow> QuestRows(string mode)
@@ -762,7 +759,7 @@ namespace PBZ.Native
                     case 1: columns = new[] { "收集品", "收集状态", "路线状态", "最近铃铛", "地区" }; rows = CollectionRows(mode, false); break;
                     case 2:
                         columns = mode == "4" ? new[] { "装备", "铸魂状态", "铸魂材料", "材料附近铃铛", "材料地区" }
-                            : new[] { "收集品", "意识尘埃", "武器材料", "收集状态", "路线状态", "最近铃铛", "地区" };
+                            : new[] { "收集品", "收集状态", "路线状态", "最近铃铛", "地区" };
                         rows = CollectionRows(mode, true);
                         break;
                     case 3: columns = new[] { "任务", "完成状态", "人物或触发点", "可用情况", "进度", "失败原因或风险" }; rows = QuestRows(mode); break;
@@ -791,14 +788,9 @@ namespace PBZ.Native
             if (sort >= columns.Length) sort = -1;
             if (sort >= 0)
             {
-                if (page == 2 && sort == 1 && mode != "4")
-                    rows = rows.OrderBy(row => !row.Money.HasValue).ThenBy(row => descending ? -row.Money : row.Money);
-                else
-                {
-                    var nonempty = rows.OrderBy(row => string.IsNullOrEmpty(row.Cells[sort]));
-                    rows = descending ? nonempty.ThenByDescending(row => row.Cells[sort], ColumnTextOrder)
-                        : nonempty.ThenBy(row => row.Cells[sort], ColumnTextOrder);
-                }
+                var nonempty = rows.OrderBy(row => string.IsNullOrEmpty(row.Cells[sort]));
+                rows = descending ? nonempty.ThenByDescending(row => row.Cells[sort], ColumnTextOrder)
+                    : nonempty.ThenBy(row => row.Cells[sort], ColumnTextOrder);
             }
             var previous = list.SelectedItems.Count == 0 ? null : list.SelectedItems[0].Tag as ViewRow;
             string previousId = previous == null ? "" : previous.Document.S("id");

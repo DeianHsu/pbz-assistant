@@ -9,7 +9,7 @@ import { pipaRepair, soulComponentProducts, soulComponents, soulForms, soulGuide
 export const collectibleCategories = [
   ['weapon', '主武器'], ['phantom', '影之武装'], ['accessory', '饰品'], ['medicine', '药瓶'],
   ['book', '书籍与篇章'], ['petal', '记忆花瓣'], ['flower', '完整记忆之花'], ['treasure', '小张珍宝'],
-  ['soul', '铸魂材料'], ['soul-part', '铸魂合成部件'], ['key', '钥匙与机关'], ['quest', '剧情道具'], ['part', '饰品部件'], ['material', '升级材料'],
+  ['soul', '铸魂材料'], ['soul-part', '铸魂合成部件'], ['key', '钥匙与机关'], ['quest', '剧情道具'], ['part', '饰品部件'],
   ['bell', '铃铛'], ['challenge', '挑战地点'], ['amber', '琥珀碎片点'], ['blackstone', '黑石碎片点']
 ].map(([id, name]) => ({ id, name }));
 const lower = s => String(s || '').toLowerCase();
@@ -22,7 +22,7 @@ const recipeMaterials = new Set(Object.values(soulRecipes));
 const collectionKey = (category, id) => `${category}:${lower(id)}`;
 const goodsCategory = id => /^R_|^Page_/.test(id) ? 'book' : /^FS?_/.test(id) ? 'petal' : /^FA_/.test(id) ? 'flower'
   : /^T_/.test(id) ? 'treasure' : recipeMaterials.has(id) ? 'soul' : soulComponentProducts[id] ? 'soul-part' : /^K_/.test(id) ? 'key' : /^I_/.test(id) ? 'quest'
-  : /^AC_/.test(id) ? 'part' : /^(Weapon_Material|Ac_Material|Medi_Material)_/.test(id) ? 'material' : null;
+  : /^AC_/.test(id) ? 'part' : null;
 
 export function analyzeCollectibles(slot, catalog, collections, analysis) {
   const rows = new Map(), mapped = new Map();
