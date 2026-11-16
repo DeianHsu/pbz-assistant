@@ -50,6 +50,66 @@ namespace PBZ.Native
             if (!string.IsNullOrEmpty(path))
                 using (var bitmap = new Bitmap(window.Width, window.Height)) { window.DrawToBitmap(bitmap, window.ClientRectangle); bitmap.Save(path + suffix); }
         }
+        static void BackstreetProgress(Window window)
+        {
+            Catalog catalog = SaveSelectionTest.EmptyCatalog();
+            foreach (string id in new[] { "MainCh2-SiZhen", "MainCh2-XinZhiZongJi", "MainCh2-SiDaSheWu", "XueRouHua", "WuShiZunZhu", "BaiShanMiWen", "JianXiYiShi", "Unmapped" })
+                catalog.Quests.Add(Data.Make("id", id, "name", Progress.Guides.Get("questGuides").Get(id).S("name").Or(id), "type", "Other", "branches", new Row()));
+            Set(catalog, "Maps", new[] {
+                Data.Make("id", "PangZhen", "name", "庞镇地区", "members", new[] { "PangZhen", "HouJie" }, "points", new[] {
+                    Data.Make("key", "HouJie:flower:F_06033", "rawMap", "HouJie", "kind", "flower", "id", "F_06033", "name", "舞狮尊主的记忆·后街", "category", "petal"),
+                    Data.Make("key", "HouJie:flower:Unmapped", "rawMap", "HouJie", "kind", "flower", "id", "F_Unmapped", "name", "舞狮尊主的记忆·证据不足", "category", "petal") }),
+                Data.Make("id", "XiMeng", "name", "戏梦山庄", "members", new[] { "XiMeng" }, "points", new[] {
+                    Data.Make("key", "XiMeng:flower:Future", "rawMap", "XiMeng", "kind", "flower", "id", "F_Future", "name", "舞狮尊主的记忆·后续地区", "category", "petal") }) });
+            Row slot = Slot("PBZ_HouJie_WP");
+            slot.Get("Narrative").Dict()["NarrativeSavedQuests"] = new[] {
+                Record("MainCh2-SiZhen", "Succeeded", new string[0], ""),
+                Record("MainCh2-XinZhiZongJi", "Started", new string[0], "3"),
+                Record("XueRouHua", "Started", new[] { "1", "S2" }, "2"),
+                Record("WuShiZunZhu", "Started", new string[0], "1"),
+                Record("BaiShanMiWen", "Started", new string[0], "1"),
+                Record("JianXiYiShi", "Succeeded", new string[0], ""),
+                Record("Unmapped", "Started", new string[0], "1") };
+            slot.Get("EventPipeline").Dict()["GlobalTags"] = new[] { "pz.击杀.堕落将军" };
+            slot.Get("Inventory").Get("AccessoryInfos").Dict()["AC_Drink"] = Data.Make("AcquiredCycle", 0);
+            string original = Data.Serializer().Serialize(slot);
+            Show(window, catalog, slot);
+            window.CheckPageFilter(7, 0);
+            Get<Button>(window, "currentMap").PerformClick();
+            var list = Get<ListView>(window, "list");
+            foreach (string id in new[] { "MainCh2-SiZhen", "MainCh2-SiDaSheWu", "MainCh2-XinZhiZongJi", "XueRouHua", "JianXiYiShi", "Unmapped" })
+                Check(!list.Items.Cast<ListViewItem>().Any(i => Document(i).S("questId") == id), "当前可做不得混入已完成、未接、其他目的地、前置不满足或证据不足的任务：" + id + "\n" +
+                    list.Items.Cast<ListViewItem>().Select(Document).FirstOrDefault(d => d.S("questId") == id).S("summary"));
+            Row lion = list.Items.Cast<ListViewItem>().Select(Document).Single(d => d.S("questId") == "WuShiZunZhu");
+            Check(lion.Rows("targets").Length == 1 && lion.Rows("targets")[0].S("rawMap") == "HouJie", "同一收集任务只能列当前地图可处理的点位，后续地区及未知通路应分开");
+            Check(lion.S("helpPhase") == "庞镇阶段" && lion.S("summary").Contains("庞镇后街") && !lion.S("summary").Contains("后续地区") && !lion.S("summary").Contains("映射待核实"), "当前任务须写明地图、阶段、可执行目标，不能夹带后续点位");
+            Check(list.Items.Cast<ListViewItem>().All(i => MapHelp.Related(Document(i), "HouJie")), "默认可做列表只显示本图，跨地图事项通过提醒单独查阅");
+            Check(list.Items.Cast<ListViewItem>().All(i => Document(i).S("stateLabel") != "待核实"), "未记录接取的任务应直接注明无接取记录，不能把已知状态写成待核实");
+            Pick(list, "quest:WuShiZunZhu");
+            Preview(window, ".current.png");
+
+            window.CheckPageFilter(7, 1);
+            Row lily = list.Items.Cast<ListViewItem>().Select(Document).Single(d => d.S("questId") == "XueRouHua");
+            Check(lily.S("helpText").Contains("长鸿") && !lily.S("helpText").Contains("核实") && !lily.S("helpText").Contains("核对"), "存档能确定缺少的前置应直接说明，不能写成人工核对");
+            lion = list.Items.Cast<ListViewItem>().Select(Document).Single(d => d.S("questId") == "WuShiZunZhu");
+            Check(lion.S("helpPhase") == "戏梦山庄阶段" && lion.Strings("maps").SequenceEqual(new[] { "XiMeng" }), "后续地区应在前置未满足中单列实际阶段，不能沿用整条任务的接取阶段");
+            Pick(list, "quest:XueRouHua");
+            Preview(window, ".locked.png");
+
+            window.CheckPageFilter(7, 6);
+            Check(list.Items.Cast<ListViewItem>().Any(i => Document(i).S("questId") == "Unmapped"), "真正缺少定位证据的活动任务应保留在证据不足中");
+            Check(!list.Items.Cast<ListViewItem>().Any(i => Document(i).S("questId") == "XueRouHua"), "已知前置不满足和证据不足必须分开");
+            lion = list.Items.Cast<ListViewItem>().Select(Document).Single(d => d.S("questId") == "WuShiZunZhu");
+            Check(lion.Rows("targets").Length == 1 && lion.Rows("targets")[0].Get("access").S("state") == "unknown", "未知通路不能因相邻点位可达而被标为可做");
+            Preview(window, ".unknown.png");
+
+            window.CheckPageFilter(3, 4);
+            Check(list.Columns.Cast<ColumnHeader>().Any(c => c.Text == "目标地图") && list.Columns.Cast<ColumnHeader>().Any(c => c.Text == "阶段"), "全部任务也必须直接显示地图和阶段");
+            var trace = list.Items.Cast<ListViewItem>().Single(i => Document(i).S("questId") == "MainCh2-XinZhiZongJi");
+            Check(trace.SubItems[2].Text == "庞镇地区" && !trace.SubItems[2].Text.Contains("后街"), "整条任务曾涉及后街，不能覆盖当前活动分支实际要去的景炀轩");
+            Check(original == Data.Serializer().Serialize(slot), "当前目标筛选不得修改原始存档");
+            Console.WriteLine("庞镇后街当前目标、阶段分流与前置判定验证通过");
+        }
         public static void Run(Window window)
         {
             var offline = new MapHelp(new TaskDetails());
@@ -90,10 +150,14 @@ namespace PBZ.Native
             window.CheckPageFilter(7, 0);
             var list = Get<ListView>(window, "list");
             var sidebar = Get<ListBox>(window, "nav");
+            Check(list.Columns.Cast<ColumnHeader>().Any(c => c.Text == "地图") && list.Columns.Cast<ColumnHeader>().Any(c => c.Text == "阶段"), "当前进度必须直接显示目标地图和处理阶段");
             Check(sidebar.Items.Count == 6 && sidebar.Items[0].ToString() == "任务助手" && !sidebar.Items.Contains("地图助手") && !sidebar.Items.Contains("行前检查") && !sidebar.Items.Contains("任务路线"), "三栏应合并为一个任务助手入口");
             Check(Get<RadioButton>(window, "progressView").Checked && Get<ComboBox>(window, "region").Text == "当前阶段与地图", "当前进度应结合阶段和地图展示相关信息");
             Check(list.Items.Cast<ListViewItem>().Select(i => Document(i).S("id")).Distinct().Count() == list.Items.Count, "同一任务在当前进度中只能出现一次");
-            Check(list.Items.Cast<ListViewItem>().Any(i => Document(i).Flag("stageRelated") && !MapHelp.Related(Document(i), "XiGu")), "当前阶段的跨地图事项应保留，不能仅按所在地过滤");
+            Check(list.Items.Cast<ListViewItem>().All(i => MapHelp.Related(Document(i), "XiGu")), "默认可做列表不应混入其他地图的提醒");
+            window.CheckPageFilter(7, 4);
+            Check(list.Items.Cast<ListViewItem>().Any(i => i.Group.Header.StartsWith("跨地图提醒")), "当前阶段的跨地图事项应保留在提醒视图并单独分组");
+            window.CheckPageFilter(7, 0);
             Check(window.OwnedForms.All(f => f.IsDisposed), "查看进度不应自动打开完整攻略或弹窗");
             var region = Get<ComboBox>(window, "region");
             region.SelectedIndex = Enumerable.Range(0, region.Items.Count).Single(i => region.Items[i].ToString() == "陆家村地区");
@@ -173,6 +237,7 @@ namespace PBZ.Native
             window.CheckPageFilter(7, 0);
             Preview(window, "");
             Check(original == Data.Serializer().Serialize(slot), "任务帮助和提醒操作不得改写存档");
+            BackstreetProgress(window);
             Console.WriteLine("地图助手与可忽略提醒验证通过");
         }
     }

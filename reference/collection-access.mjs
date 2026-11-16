@@ -63,6 +63,9 @@ function checkEvidence(slot, evidence) {
   }
 }
 export function routeAccess(route, slot) {
+  const reachedBackstreet = /HouJie/i.test(slot.PBZGameSystem?.CurrentLevelName || '') ||
+    Object.entries(slot.MapSubsystem?.UnLockMaskInfos || {}).some(([map, cycles]) => /HouJie/i.test(map) &&
+      Array.isArray(cycles?.[slot.PBZGameSystem?.CycleCount]) && cycles[slot.PBZGameSystem.CycleCount].length > 0);
   if (route.quest && (quest(slot, route.quest)?.QuestCompletion === 'EQuestCompletion::QC_Failed' || route.quest === 'BuMieXiaDan' && tag(slot, 'pz.不灭侠胆.任务失败') === true)) {
     return { ...result('locked', '存档明确记录相关任务已失败；此项不能靠继续主线补回，请核对旧存档或下一周目。', route.source), label: '任务已失效' };
   }
@@ -70,7 +73,7 @@ export function routeAccess(route, slot) {
     city: ['进入庞镇', () => tag(slot, 'pz.庞镇.到达')],
     redCaptain: ['击败红衣鬼差，进入庞镇中心', () => any(tag(slot, 'pz.击杀.红衣鬼差P2'), itemAcquired(slot, 'HuoLiuXing', 'phantom'))],
     cavalry: ['击败鬼差高手斩骑，开放酒馆后续路线', () => any(tag(slot, 'pz.击杀.鬼差斩骑'), itemAcquired(slot, 'PoJun', 'weapon'))],
-    backstreet: ['穿过幻鬼酒馆，进入后街', () => tag(slot, 'pz.后街.进入')],
+    backstreet: ['穿过幻鬼酒馆，进入后街', () => reachedBackstreet ? true : tag(slot, 'pz.后街.进入')],
     wuXuan: ['击败后街的堕落将军武轩', () => any(tag(slot, 'pz.击杀.堕落将军'), itemAcquired(slot, 'TanLang', 'phantom'))],
     wraith: ['击败骨婉约，开放井底路线', () => tag(slot, 'pz.击杀.骨婉约')],
     doctor: ['击败神医谢秋冬，开放青蛇屋后段', () => killed(slot, 'BP_Monster_MadDoctor')],

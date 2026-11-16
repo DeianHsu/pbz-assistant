@@ -192,7 +192,7 @@ test('后续地区目标单独标记，枷笼山同时给出琵琶雾门的前�
 test('血肉花在当前阶段探望父亲，不会要求重做早期交付或归到驿站', () => {
   const q = quest('XueRouHua', ['2']), s = save();
   s.EventPipeline.GlobalTags.push('ljc.击杀.长鸿P2', 'xg.玉儿.给玉儿血肉花');
-  const t = run(q, s).targets[0]; assert.equal(t.mapId, 'PangZhen'); assert.equal(t.access.state, 'route');
+  const t = run(q, s).targets[0]; assert.equal(t.mapId, 'PangZhen'); assert.equal(t.rawMap, 'HouJie'); assert.equal(t.access.state, 'route');
 });
 test('归途故屋缺少烧枝能力时标不可触发，继承烈焰狮头仍可用于探索', () => {
   const s = save(), q = quest('GuiTu', ['3-A']); add(s, 'K_05004');

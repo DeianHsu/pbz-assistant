@@ -129,7 +129,8 @@ namespace PBZ.Native
             else if (unknown.Length > 0 && route.S("state") != "locked") route = CollectionAccess.Result("unknown", string.Join(" ", unknown)).With("label", "前置记录待核实");
             else if (target.Flag("verify") && route.S("state") != "locked") route = CollectionAccess.Result("unknown", target.S("evidence")).With("label", "领取待核对");
             string mapName = Maps.Get(group).List().FirstOrDefault().Str().Or(area);
-            return Data.Make("mapId", group, "mapName", mapName, "area", area, "person", target.S("person"), "branchId", branch.S("id"),
+            return Data.Make("rawMap", map, "mapId", group, "mapName", mapName, "area", area, "person", target.S("person"), "branchId", branch.S("id"),
+                "phase", target.Flag("ice") ? "血色森林冰封后" : info.Length == 0 ? "阶段未定位" : Stage.Names[info[1].Int()],
                 "objective", branch.S("objective"), "details", branch.S("details"), "access", route, "future", future, "next", target.S("next"),
                 "pointKey", target.Get("point").S("key"),
                 "bell", target.S("bell").Or(target.Get("point").Rows("nearest").FirstOrDefault().S("name")),
@@ -155,7 +156,8 @@ namespace PBZ.Native
         {
             var map = Maps.Get(offer.S("map")).List();
             string area = map[0].Str(), group = map[2].Str();
-            return Data.Make("mapId", group, "mapName", Maps.Get(group).List().FirstOrDefault().Str().Or(area), "area", area,
+            return Data.Make("rawMap", offer.S("map"), "mapId", group, "mapName", Maps.Get(group).List().FirstOrDefault().Str().Or(area), "area", area,
+                "phase", Stage.Names[map[1].Int()],
                 "person", offer.S("person"), "place", offer.S("place"), "bell", p.Catalog.BellName(offer.S("bellId")), "next", closed ? "" : offer.S("action"),
                 "warning", closed ? "" : offer.S("warning"), "source", offer.S("source"),
                 "access", closed ? CollectionAccess.Result("locked", offer.S("closedReason")).With("label", "接取已关闭")

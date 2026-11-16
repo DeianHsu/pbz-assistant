@@ -80,6 +80,7 @@ test('原生窗口支持合并任务助手、节点与任务互查、提醒控�
     assert.match(output, /详情窗口与逐步进度验证通过/);
     assert.match(output, /无存档资料浏览验证通过/);
     assert.match(output, /地图助手与可忽略提醒验证通过/);
+    assert.match(output, /庞镇后街当前目标、阶段分流与前置判定验证通过/);
     assert.match(output, /全收集品范围验证通过/);
   } finally {
     assert.equal(path.dirname(path.resolve(temp)), path.resolve(work));

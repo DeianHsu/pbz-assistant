@@ -86,7 +86,7 @@ namespace PBZ.Native
         public static string Join(params string[] text) { return string.Join("\r\n", text.Where(s => !string.IsNullOrWhiteSpace(s))); }
         static string CurrentSteps(IEnumerable<Row> steps)
         {
-            return string.Join("、", steps.Select((s, i) => s.Flag("current") ? "第 " + (i + 1) + " 步 · " + s.S("title") : "").Where(s => s != ""));
+            return string.Join("、", steps.Select((s, i) => s.Flag("current") ? "第 " + (i + 1) + " 步 · " + s.S("mapName") + " · " + s.S("place") + " · " + s.S("title") : "").Where(s => s != ""));
         }
         public static string MapName(string map)
         {
@@ -165,13 +165,16 @@ namespace PBZ.Native
         {
             if (reason != "") return reason;
             if (quest.S("state") == "done") return "任务已结算，奖励领取情况按物品记录分别核对。";
-            string[] conditions = quest.Rows("targets").Where(t => t.Get("access").S("state") == "locked" || t.Get("access").S("state") == "unknown")
+            string[] conditions = quest.Rows("targets").Where(t => t.Get("access").S("state") == "locked")
                 .Select(t => Join(t.S("person"), t.Get("access").S("reason"))).Where(s => s != "").Distinct().ToArray();
-            if (conditions.Length > 0) return "以下目标的条件或位置仍需核对：\r\n" + Join(conditions);
+            string[] unknown = quest.Rows("targets").Where(t => t.Get("access").S("state") == "unknown")
+                .Select(t => Join(t.S("person"), t.Get("access").S("reason"))).Where(s => s != "").Distinct().ToArray();
+            if (conditions.Length > 0 || unknown.Length > 0) return Join(conditions.Length == 0 ? "" : "前置未满足：\r\n" + Join(conditions),
+                unknown.Length == 0 ? "" : "存档证据不足：\r\n" + Join(unknown));
             if (quest.Flag("canAccept")) return "当前已知接取条件满足；可按人物或触发点信息查找入口。";
             if (quest.S("state") == "unknown") return "当前任务状态无法识别，尚不能判断卡点；可对照游戏日志与完整攻略。";
-            if (quest.S("state") == "missing") return "所选槽位没有接取记录，接取条件仍需结合地图和游戏日志核对。";
-            return "当前已知条件中没有明确阻碍，可按活动目标查阅对应地点和操作。";
+            if (quest.S("state") == "missing") return "所选槽位尚无接取记录，接取位置与流程见完整攻略。";
+            return "已知前置满足，可按当前目标推进。";
         }
         Row Quest(Row quest)
         {
@@ -184,7 +187,7 @@ namespace PBZ.Native
             if (state == "failed" && reason == "") reason = "已确认任务失败，存档未记录具体原因。";
             string recovery = failure.S("action");
             if (reason != "" && recovery == "") recovery = "核对失败前的旧存档；若该路线本周目已不可恢复，需在下一周目重新处理。";
-            string label = quest.S("catalogNote") != "" ? "资源留档" : quest.Flag("canAccept") ? "未接取" : Progress.Guides.Get("STATE_LABELS").S(state).Or("待核实");
+            string label = quest.S("catalogNote") != "" ? "资源留档" : quest.S("stateLabel").Or(Progress.Guides.Get("STATE_LABELS").S(state)).Or("存档证据不足");
             var definitions = guide.Rows("steps").ToList();
             if (guide.Count == 0 || guide.Flag("archive") && quest.Flag("recorded"))
             {
@@ -198,7 +201,9 @@ namespace PBZ.Native
             Row[] steps = definitions.Select(s => Step(id, quest, s)).ToArray();
             string current = CurrentSteps(steps);
             string activeTargets = string.Join("、", quest.Rows("branches").Where(b => b.Flag("active")).Select(b => b.S("objective")).Where(s => s != ""));
-            string next = reason != "" ? recovery : current != "" ? current : activeTargets != "" ? activeTargets + "（攻略步骤映射待核实）"
+            string destinations = Join(quest.Rows("targets").Where(t => t.S("rawMap") != "").Select(t =>
+                t.S("area") + " · " + t.S("person") + (t.S("next") == "" ? "" : "：" + t.S("next"))).Distinct().ToArray());
+            string next = reason != "" ? recovery : current != "" ? current : destinations != "" ? destinations : activeTargets != "" ? activeTargets
                 : state == "done" ? "任务已完成；独立奖励和收集步骤仍按各自证据核对。" : quest.Flag("canAccept") ? "先完成接取步骤。" : "当前进行到哪一步尚不能从存档确定。";
             string evidenceText = Join("任务状态：" + label, "当前日志目标：" + activeTargets.Or("无可读取的活动目标"), failure.S("evidence"));
             string blocker = Blocker(quest, reason);

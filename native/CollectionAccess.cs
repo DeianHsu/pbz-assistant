@@ -94,7 +94,7 @@ namespace PBZ.Native
                 case "city": title = "进入庞镇"; value = p.Tag("pz.庞镇.到达"); break;
                 case "redCaptain": title = "击败红衣鬼差，进入庞镇中心"; value = Any(p.Tag("pz.击杀.红衣鬼差P2"), Has("HuoLiuXing", "phantom")); break;
                 case "cavalry": title = "击败鬼差高手斩骑"; value = Any(p.Tag("pz.击杀.鬼差斩骑"), Has("PoJun", "weapon")); break;
-                case "backstreet": title = "穿过幻鬼酒馆，进入后街"; value = p.Tag("pz.后街.进入"); break;
+                case "backstreet": title = "穿过幻鬼酒馆，进入后街"; value = p.Reached("HouJie") ? true : p.Tag("pz.后街.进入"); break;
                 case "wuXuan": title = "击败后街的堕落将军武轩"; value = Any(p.Tag("pz.击杀.堕落将军"), Has("TanLang", "phantom")); break;
                 case "wraith": title = "击败骨婉约，开放井底路线"; value = p.Tag("pz.击杀.骨婉约"); break;
                 case "doctor": title = "击败神医谢秋冬，开放青蛇屋后段"; value = p.Killed("BP_Monster_MadDoctor"); break;

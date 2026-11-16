@@ -6,6 +6,24 @@ const save = () => ({ PBZGameSystem: { CycleCount: 1 }, Inventory: { InventoryIn
 const point = overrides => ({ rawMap: 'FuJiZhiLin', kind: 'medicine', id: 'Medicine_AdditionalRecover', state: 'missing', nearest: [{ activated: true }], ...overrides });
 const record = (id, branches = []) => ({ QuestClass: `/Game/${id}.${id}_C`, QuestCompletion: 'EQuestCompletion::QC_Started', QuestBranches: branches });
 
+test('当前所在地或本周目到访能证明已进入后街，仍独立核对武轩和门锁', () => {
+  const s = save();
+  s.Inventory.ShaChiWeaponInfo = {};
+  s.EventPipeline.GlobalTags = ['pz.击杀.堕落将军'];
+  const p = point({ rawMap: 'HouJie', kind: 'flower', id: 'F_06033' });
+  assert.equal(collectionAccess(p, s, true).state, 'locked');
+  s.PBZGameSystem.CurrentLevelName = 'PBZ_HouJie_WP';
+  assert.equal(collectionAccess(p, s, true).state, 'ready');
+  s.EventPipeline.GlobalTags = [];
+  assert.equal(collectionAccess(p, s, true).state, 'locked');
+  s.EventPipeline.GlobalTags = ['pz.击杀.堕落将军'];
+  s.PBZGameSystem.CurrentLevelName = 'PBZ_PangZhen_WP';
+  s.MapSubsystem = { UnLockMaskInfos: { HouJie: { 0: ['old'] } } };
+  assert.equal(collectionAccess(p, s, true).state, 'locked');
+  s.MapSubsystem.UnLockMaskInfos.HouJie[1] = ['current'];
+  assert.equal(collectionAccess(p, s, true).state, 'ready');
+});
+
 test('白雪儿小院花瓣与雪与血分开检查项链交付、拾取与挖掘', () => {
   const s = save(), tags = s.EventPipeline.GlobalTags;
   tags.push('pz.后街.进入', 'pz.击杀.堕落将军');

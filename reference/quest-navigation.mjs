@@ -215,7 +215,7 @@ function resolveTarget(t, branch, slot, stage) {
   if (missing.length) access = { state: 'locked', label: '暂时无法触发', reason: [...new Set(missing.map(([, text]) => text))].join(' ') };
   else if (unknown.length && access.state !== 'locked') access = { state: 'unknown', label: '前置记录待核实', reason: unknown.map(([, text]) => text).join(' ') };
   else if (t.verify && access.state !== 'locked') access = { state: 'unknown', label: '领取待核对', reason: t.evidence };
-  return { mapId, mapName: definition ? maps[mapId]?.[0] || mapName : mapName, area: mapName, person: t.person, bell: t.bell || t.point?.nearest[0]?.name || '',
+  return { rawMap: t.map || '', mapId, mapName: definition ? maps[mapId]?.[0] || mapName : mapName, area: mapName, person: t.person, bell: t.bell || t.point?.nearest[0]?.name || '',
     branchId: branch.id, objective: branch.objective || '', access, future, source: t.source || access.source || guide,
     evidence: t.evidence || (t.inferred ? '地区由存档当前活动目标明示；具体人物位置尚未逐项核实。' : '按原生任务分支、当前物品/事件及已核对地点定位；不以最初接取地代替当前目的地。'), next: t.next || '' };
 }
@@ -238,7 +238,7 @@ function findOffer(q, slot, analysis, bells) {
 
 function resolveOffer(offer, catalog, closed = false) {
   const [area, , mapId] = maps[offer.map];
-  return { mapId, mapName: maps[mapId]?.[0] || area, area, person: offer.person, place: offer.place, bell: catalog.bells?.[offer.bellId] || '',
+  return { rawMap: offer.map, mapId, mapName: maps[mapId]?.[0] || area, area, person: offer.person, place: offer.place, bell: catalog.bells?.[offer.bellId] || '',
     next: closed ? '' : offer.action, warning: closed ? '' : offer.warning || '', source: offer.source,
     access: closed ? { state: 'locked', label: '接取已关闭', reason: offer.closedReason }
       : { state: 'ready', label: '可接取', reason: '已核对接取点附近的到达记录及已知前置。' } };

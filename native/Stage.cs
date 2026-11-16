@@ -9,7 +9,7 @@ namespace PBZ.Native
     // 与 stages.mjs 相同的存档证据：主线进度、到访地图、首领及事件。
     internal static class Stage
     {
-        static readonly string[] Names = { "未知阶段", "悲泣溪谷阶段", "血色森林阶段", "陆家村阶段", "庞镇阶段", "梅谷湖阶段", "枷笼山阶段", "戏梦山庄阶段", "断魂山阶段", "通关后" };
+        public static readonly string[] Names = { "未知阶段", "悲泣溪谷阶段", "血色森林阶段", "陆家村阶段", "庞镇阶段", "梅谷湖阶段", "枷笼山阶段", "戏梦山庄阶段", "断魂山阶段", "通关后" };
         static IDictionary<string, object> Map(object value) { return value as IDictionary<string, object> ?? new Dictionary<string, object>(); }
         static object Get(object value, string key) { object result; return Map(value).TryGetValue(key, out result) ? result : null; }
         static string Text(object value) { return value == null ? "" : Convert.ToString(value); }
